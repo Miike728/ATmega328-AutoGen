@@ -93,6 +93,7 @@ void alertaCorteLuz() {
 
 void iniciarGenerador() {
   if (!generadorEnMarcha) {
+    tiempoInicioGenerador = millis(); // Guardar el tiempo de inicio del generador
     digitalWrite(ledWaiting, LOW); // Apagar LED WAITING
     digitalWrite(releLlave, HIGH); // Activar contacto
     lcd.setCursor(0, 1);
@@ -166,6 +167,7 @@ void operacionNormal() {
   lcd.print("                ");
   beep(buzzer, 1, 200); // 1 pitido corto para Choke
   lcd.setCursor(0, 1);
+  delay(500); // Pequeña pausa antes de abrir el aire para evitar que se apague
   lcd.print("Aire abierto");
   delay(300);
   
@@ -252,11 +254,28 @@ void restablecerSistema() {
     
     digitalWrite(ledWaiting, HIGH); // Encender LED WAITING
     digitalWrite(ledVerde, LOW); // Apagar LED motor arrancado
-    lcd.setCursor(0, 1);
-    lcd.print("                ");
+    lcd.clear();
     lcd.setCursor(0, 1);
     lcd.print("Motor apagado");
     beep(buzzer, 3, 1000); // 3 pitidos largos
+     // Función para mostrar el tiempo de funcionamiento del generador al apagarse
+    unsigned long tiempoFuncionamiento = (millis() - tiempoInicioGenerador) / 1000; // Tiempo en segundos
+    lcd.setCursor(0, 0);
+    lcd.print("Duracion ON: ");
+    if (tiempoFuncionamiento < 60) {
+      // Mostrar solo segundos si el tiempo es menos de 60 segundos
+      lcd.print(tiempoFuncionamiento);
+      lcd.print(" s");
+    } else {
+      // Calcular minutos y segundos si el tiempo es 60 segundos o más
+      unsigned long minutos = tiempoFuncionamiento / 60; // Dividir por 60 para obtener los minutos
+      unsigned long segundos = tiempoFuncionamiento % 60; // Usar módulo para obtener los segundos restantes
+      lcd.print(minutos);
+      lcd.print(" min ");
+      lcd.print(segundos);
+      lcd.print(" s");
+    }
+    delay(10000); // Esperar 10 segundos para poder leer la pantalla
     
     generadorEnMarcha = false;
     lcd.clear();
