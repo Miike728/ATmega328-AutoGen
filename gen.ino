@@ -55,7 +55,7 @@ void loop() { ///////////////REVISAR
 
   // Detectar corte de luz
   if (!luzActual && luzPrevia) {
-    if(arranqueRestart > 0) {
+    if(arranqueRestart < 1) {
     alertaCorteLuz();
     iniciarGenerador();
     arranqueRestart++;
@@ -220,9 +220,15 @@ void restablecerSistema() {
     digitalWrite(ledRojo, LOW); // Apagar LED de alerta de corte
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Luz restablecida");
-    
-    delay(5000); // Esperar en generador 5 segundos
+    lcd.print("Suministro elec.");
+    lcd.setCursor(0, 1);
+    lcd.print("restablecido!");    
+    delay(2000); // Esperar 2 segundos
+    lcd.setCursor(0, 0);
+    lcd.print("Hay suministro!");
+    lcd.setCursor(0, 1);
+    lcd.print("Esperando 10s...");
+    delay(10000); // Esperar 10 segundos antes de apagar el generador
     digitalWrite(releTransfer, LOW);
     digitalWrite(ledTodoOk, LOW);
     lcd.setCursor(0, 1);
@@ -238,6 +244,7 @@ void restablecerSistema() {
     lcd.setCursor(0, 1);
     lcd.print("Ventilacion OFF");
     
+    delay(500); // Pequeña pausa antes de apagar el motor
     digitalWrite(releLlave, LOW); // Apagar contacto
     lcd.setCursor(0, 1);
     lcd.print("                ");
