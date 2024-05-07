@@ -108,6 +108,7 @@ void iniciarGenerador() {
     beep(buzzer, 1, 200); // 1 pitido corto para Aire
     lcd.setCursor(0, 1);
     lcd.print("Aire cerrado");
+    delay(500);
     intentarArrancar();
   }
 }
@@ -170,13 +171,9 @@ void operacionNormal() {
   lcd.print("Esperando aire...");
   delay(750); // Pequeña pausa antes de abrir el aire para evitar que se apague
   lcd.print("Aire abierto");
-  delay(300);
+  delay(500);
   
   beep(buzzer, 2, 200); // Confirmación de arranque
-  lcd.setCursor(0, 1);
-  lcd.print("                ");
-  lcd.setCursor(0, 1);
-  lcd.print("Motor ON");
   digitalWrite(releVentilacion, HIGH);
   digitalWrite(ledFan, HIGH);
   lcd.setCursor(0, 1);
