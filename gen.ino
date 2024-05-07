@@ -167,7 +167,8 @@ void operacionNormal() {
   lcd.print("                ");
   beep(buzzer, 1, 200); // 1 pitido corto para Choke
   lcd.setCursor(0, 1);
-  delay(500); // Pequeña pausa antes de abrir el aire para evitar que se apague
+  lcd.print("Esperando aire...");
+  delay(750); // Pequeña pausa antes de abrir el aire para evitar que se apague
   lcd.print("Aire abierto");
   delay(300);
   
@@ -225,7 +226,7 @@ void restablecerSistema() {
     lcd.print("restablecido!");    
     delay(2000); // Esperar 2 segundos
     lcd.setCursor(0, 0);
-    lcd.print("Hay suministro!");
+    lcd.print("Hay suministro! ");
     lcd.setCursor(0, 1);
     lcd.print("Esperando 10s...");
     delay(10000); // Esperar 10 segundos antes de apagar el generador
@@ -255,7 +256,7 @@ void restablecerSistema() {
     // Espera activa hasta que el motor se haya apagado
     while (digitalRead(monitorArranque)) { // Mientras esté encendido, esperar
       lcd.setCursor(0, 1);
-      lcd.print("Esperando apagado");
+      lcd.print("Esperando motor");
       delay(100); // Pequeña pausa para no saturar el bucle
     }
     
@@ -268,19 +269,19 @@ void restablecerSistema() {
      // Función para mostrar el tiempo de funcionamiento del generador al apagarse
     unsigned long tiempoFuncionamiento = (millis() - tiempoInicioGenerador) / 1000; // Tiempo en segundos
     lcd.setCursor(0, 0);
-    lcd.print("Duracion ON: ");
+    lcd.print("Tiempo: ");
     if (tiempoFuncionamiento < 60) {
       // Mostrar solo segundos si el tiempo es menos de 60 segundos
       lcd.print(tiempoFuncionamiento);
-      lcd.print(" s");
+      lcd.print("s");
     } else {
       // Calcular minutos y segundos si el tiempo es 60 segundos o más
       unsigned long minutos = tiempoFuncionamiento / 60; // Dividir por 60 para obtener los minutos
       unsigned long segundos = tiempoFuncionamiento % 60; // Usar módulo para obtener los segundos restantes
       lcd.print(minutos);
-      lcd.print(" min ");
+      lcd.print("m ");
       lcd.print(segundos);
-      lcd.print(" s");
+      lcd.print("s");
     }
     delay(10000); // Esperar 10 segundos para poder leer la pantalla
     
