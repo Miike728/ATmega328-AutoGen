@@ -7,7 +7,7 @@ LiquidCrystal_I2C lcd(0x20, 16, 2); // Ajusta la dirección de tu display si es 
 // Definición de pines
 const int ledRojo = 2, ledVerde = 3, ledArranque = 4, ledFan = 5, ledWaiting = 6, ledTodoOk = 7;
 const int releLlave = 8, releChoke = 9, releVentilacion = 10, releTransfer = 11;
-const int releMotorArranque = A1, monitorArranque = A2;
+const int releMotorArranque = A1, monitorArranque = A2, ledFallo = A3;
 const int sensorLuz = 13;
 const int buzzer = 12;
 
@@ -26,6 +26,7 @@ void setup() {
   pinMode(ledFan, OUTPUT);
   pinMode(ledWaiting, OUTPUT);
   pinMode(ledTodoOk, OUTPUT);
+  pinMode(ledFallo, OUTPUT);
   
   pinMode(releLlave, OUTPUT);
   pinMode(releChoke, OUTPUT);
@@ -207,7 +208,9 @@ void estadoError() {
   
   while (true) {
     // Mantiene el sistema en un estado de error
+    digitalWrite(ledFallo, HIGH);
     beep(buzzer, 1, 1000); // Emite un pitido largo continuamente
+    digitalWrite(ledFallo, LOW);
     delay(2000); // Espera entre pitidos
   }
 }
