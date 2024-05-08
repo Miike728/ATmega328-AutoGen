@@ -1,4 +1,5 @@
 #include <Wire.h>
+#include <Servo.h>
 #include <LiquidCrystal_I2C.h>
 
 // Configuración del display I2C
@@ -6,10 +7,12 @@ LiquidCrystal_I2C lcd(0x20, 16, 2);
 
 // Definición de pines
 const int ledCorte = 2, ledVerde = 3, ledArranque = 4, ledFan = 5, ledWaiting = 6, ledTransfer = 7;
-const int releContacto = 8, releAire = 9, releFan = 10, releTransfer = 11;
+const int releContacto = 8, releFan = 10, releTransfer = 11;
 const int releMotorArranque = A1, monitorArranque = A2, ledFallo = A3;
 const int sensorLuz = 13;
 const int buzzer = 12;
+
+Servo servoChoke;  // Crear objeto Servo para controlar el choke
 
 // Variables de estado
 bool generadorEnMarcha = false;
@@ -29,20 +32,31 @@ void setup() {
   pinMode(ledFallo, OUTPUT);
   
   pinMode(releContacto, OUTPUT);
-  pinMode(releAire, OUTPUT);
   pinMode(releFan, OUTPUT);
   pinMode(releTransfer, OUTPUT);
   pinMode(releMotorArranque, OUTPUT);
-  
   pinMode(monitorArranque, INPUT);
   pinMode(sensorLuz, INPUT);
   pinMode(buzzer, OUTPUT);
   
   digitalWrite(ledWaiting, HIGH); // LED WAITING encendido inicialmente
-  
+
   // Iniciar LCD
   lcd.init();
   lcd.backlight();
+
+  lcd.setCursor(0, 0);
+  lcd.print("Inicializando...");
+  servoChoke.attach(9);  // Adjuntar el servo al pin 9
+  delay(1000); // Pequeña pausa para permitir que el servo se inicialice
+  servoChoke.write(120); // Probar con el choke abierto (ajustar)////////////////
+  delay(500);
+  servoChoke.write(0);   // Empezar con el choke cerrado (ajustar)//////////////
+  delay(1000);
+  servoChoke.write(120); // Dejar abierto (ajustar)////////////////
+  
+  // Mostrar mensaje de espera
+  lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Esperando fallo");
   lcd.setCursor(0, 1);
@@ -100,7 +114,7 @@ void iniciarGenerador() {
     lcd.setCursor(0, 1);
     lcd.print("Preparando...");
     delay(1000); // Esperar 1 segundo antes de intentar arrancar
-    digitalWrite(releAire, HIGH);
+    cerrarAire(); // Cerrar el aire
     beep(buzzer, 1, 200); // 1 pitido corto para Aire
     lcd.setCursor(0, 1);
     lcd.print("Aire cerrado");
@@ -158,7 +172,7 @@ void operacionNormal() {
   lcd.setCursor(0, 1);
   lcd.print("Motor arrancado");
   digitalWrite(ledVerde, HIGH);
-  digitalWrite(releAire, LOW); // Abrir aire
+  abrirAire(); // Abrir el aire después de arrancar
   digitalWrite(ledArranque, LOW);
   lcd.setCursor(0, 1);
   lcd.print("                ");
@@ -199,7 +213,7 @@ void estadoError() {
   lcd.print("ERROR! Revisar!");
   lcd.setCursor(0, 1);
   lcd.print("Motor no arranca");
-  digitalWrite(releAire, LOW);
+  abrirAire(); // Abrir el aire en caso de error
   digitalWrite(releContacto, LOW);
   
   while (true) {
@@ -299,4 +313,21 @@ void beep(int pin, int count, int duration) {
     digitalWrite(pin, LOW);
     delay(200);
   }
+}
+
+// Funciones para controlar el aire
+void cerrarAire() {
+  servoChoke.write(0); // Ajustar ángulo para cerrado ////////////////////
+  lcd.setCursor(0, 1);
+  lcd.print("                ");
+  lcd.setCursor(0, 1);
+  lcd.print("Aire cerrado");
+}
+
+void abrirAire() {
+  servoChoke.write(120); // Ajustar ángulo para abierto ////////////////////
+  lcd.setCursor(0, 1);
+  lcd.print("                ");
+  lcd.setCursor(0, 1);
+  lcd.print("Aire abierto");
 }
