@@ -2,11 +2,11 @@
 #include <LiquidCrystal_I2C.h>
 
 // Configuración del display I2C
-LiquidCrystal_I2C lcd(0x20, 16, 2); // Ajusta la dirección de tu display si es diferente
+LiquidCrystal_I2C lcd(0x20, 16, 2);
 
 // Definición de pines
-const int ledRojo = 2, ledVerde = 3, ledArranque = 4, ledFan = 5, ledWaiting = 6, ledTodoOk = 7;
-const int releLlave = 8, releChoke = 9, releVentilacion = 10, releTransfer = 11;
+const int ledCorte = 2, ledVerde = 3, ledArranque = 4, ledFan = 5, ledWaiting = 6, ledTransfer = 7;
+const int releContacto = 8, releAire = 9, releFan = 10, releTransfer = 11;
 const int releMotorArranque = A1, monitorArranque = A2, ledFallo = A3;
 const int sensorLuz = 13;
 const int buzzer = 12;
@@ -20,17 +20,17 @@ int arranqueRestart = 0;
 unsigned long tiempoInicioGenerador = 0; // Almacenar el tiempo de inicio del generador
 
 void setup() {
-  pinMode(ledRojo, OUTPUT);
+  pinMode(ledCorte, OUTPUT);
   pinMode(ledVerde, OUTPUT);
   pinMode(ledArranque, OUTPUT);
   pinMode(ledFan, OUTPUT);
   pinMode(ledWaiting, OUTPUT);
-  pinMode(ledTodoOk, OUTPUT);
+  pinMode(ledTransfer, OUTPUT);
   pinMode(ledFallo, OUTPUT);
   
-  pinMode(releLlave, OUTPUT);
-  pinMode(releChoke, OUTPUT);
-  pinMode(releVentilacion, OUTPUT);
+  pinMode(releContacto, OUTPUT);
+  pinMode(releAire, OUTPUT);
+  pinMode(releFan, OUTPUT);
   pinMode(releTransfer, OUTPUT);
   pinMode(releMotorArranque, OUTPUT);
   
@@ -44,7 +44,7 @@ void setup() {
   lcd.init();
   lcd.backlight();
   lcd.setCursor(0, 0);
-  lcd.print("Esperando corte");
+  lcd.print("Esperando fallo");
   lcd.setCursor(0, 1);
   lcd.print("de suministro...");
 }
@@ -86,26 +86,21 @@ void loop() { ///////////////REVISAR
 
 
 void alertaCorteLuz() {
-  digitalWrite(ledRojo, HIGH);
+  digitalWrite(ledCorte, HIGH);
   beep(buzzer, 3, 200); // 3 pitidos cortos
   lcd.clear();
-  lcd.print("Corte detectado!");
+  lcd.print("Fallo detectado!");
 }
 
 void iniciarGenerador() {
   if (!generadorEnMarcha) {
     tiempoInicioGenerador = millis(); // Guardar el tiempo de inicio del generador
     digitalWrite(ledWaiting, LOW); // Apagar LED WAITING
-    digitalWrite(releLlave, HIGH); // Activar contacto
+    digitalWrite(releContacto, HIGH); // Activar contacto
     lcd.setCursor(0, 1);
     lcd.print("Preparando...");
-    delay(1000); // Esperar 1 segundo
-    lcd.setCursor(0, 1);
-    lcd.print("                ");
-    lcd.setCursor(0, 1);
-    lcd.print("Esperando...");
-    delay(500);
-    digitalWrite(releChoke, HIGH);
+    delay(1000); // Esperar 1 segundo antes de intentar arrancar
+    digitalWrite(releAire, HIGH);
     beep(buzzer, 1, 200); // 1 pitido corto para Aire
     lcd.setCursor(0, 1);
     lcd.print("Aire cerrado");
@@ -163,19 +158,19 @@ void operacionNormal() {
   lcd.setCursor(0, 1);
   lcd.print("Motor arrancado");
   digitalWrite(ledVerde, HIGH);
-  digitalWrite(releChoke, LOW); // Abrir choke
+  digitalWrite(releAire, LOW); // Abrir aire
   digitalWrite(ledArranque, LOW);
   lcd.setCursor(0, 1);
   lcd.print("                ");
-  beep(buzzer, 1, 200); // 1 pitido corto para Choke
+  beep(buzzer, 1, 200); // 1 pitido corto para avisar
   lcd.setCursor(0, 1);
   lcd.print("Esperando aire...");
   delay(750); // Pequeña pausa antes de abrir el aire para evitar que se apague
   lcd.print("Aire abierto");
-  delay(500);
+  delay(250);
   
   beep(buzzer, 2, 200); // Confirmación de arranque
-  digitalWrite(releVentilacion, HIGH);
+  digitalWrite(releFan, HIGH);
   digitalWrite(ledFan, HIGH);
   lcd.setCursor(0, 1);
   lcd.print("                ");
@@ -184,7 +179,7 @@ void operacionNormal() {
   delay(5000);
   
   digitalWrite(releTransfer, HIGH);
-  digitalWrite(ledTodoOk, HIGH);
+  digitalWrite(ledTransfer, HIGH);
   lcd.setCursor(0, 1);
   lcd.print("                ");
   lcd.setCursor(0, 1);
@@ -204,8 +199,8 @@ void estadoError() {
   lcd.print("ERROR! Revisar!");
   lcd.setCursor(0, 1);
   lcd.print("Motor no arranca");
-  digitalWrite(releChoke, LOW);
-  digitalWrite(releLlave, LOW);
+  digitalWrite(releAire, LOW);
+  digitalWrite(releContacto, LOW);
   
   while (true) {
     // Mantiene el sistema en un estado de error
@@ -219,7 +214,7 @@ void estadoError() {
 void restablecerSistema() {
   if (generadorEnMarcha) {
     beep(buzzer, 5, 200); // 5 pitidos cortos
-    digitalWrite(ledRojo, LOW); // Apagar LED de alerta de corte
+    digitalWrite(ledCorte, LOW); // Apagar LED de alerta de corte
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Suministro elec.");
@@ -232,14 +227,14 @@ void restablecerSistema() {
     lcd.print("Esperando 10s...");
     delay(10000); // Esperar 10 segundos antes de apagar el generador
     digitalWrite(releTransfer, LOW);
-    digitalWrite(ledTodoOk, LOW);
+    digitalWrite(ledTransfer, LOW);
     lcd.setCursor(0, 1);
     lcd.print("                ");
     lcd.setCursor(0, 1);
     lcd.print("Transfer OFF");
     
     delay(5000); // Otros 5 segundos de espera
-    digitalWrite(releVentilacion, LOW);
+    digitalWrite(releFan, LOW);
     digitalWrite(ledFan, LOW);
     lcd.setCursor(0, 1);
     lcd.print("                ");
@@ -247,7 +242,7 @@ void restablecerSistema() {
     lcd.print("Ventilacion OFF");
     
     delay(500); // Pequeña pausa antes de apagar el motor
-    digitalWrite(releLlave, LOW); // Apagar contacto
+    digitalWrite(releContacto, LOW); // Apagar contacto
     lcd.setCursor(0, 1);
     lcd.print("                ");
     lcd.setCursor(0, 1);
@@ -289,7 +284,7 @@ void restablecerSistema() {
     generadorEnMarcha = false;
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Esperando corte");
+    lcd.print("Esperando fallo");
     lcd.setCursor(0, 1);
     lcd.print("de suministro...");
 
