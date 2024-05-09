@@ -8,9 +8,9 @@ LiquidCrystal_I2C lcd(0x20, 16, 2);
 // Definición de pines
 const int ledCorte = 2, ledVerde = 3, ledArranque = 4, ledFan = 5, ledWaiting = 6, ledTransfer = 7;
 const int releContacto = 8, releFan = 10, releTransfer = 11;
-const int releMotorArranque = A1, monitorArranque = A2, ledFallo = A3;
+const int releStarter = 12, monitorArranque = A2, ledFallo = A3;
 const int sensorLuz = 13;
-const int buzzer = 12;
+const int buzzer = A1;
 
 Servo servoChoke;  // Crear objeto Servo para controlar el choke
 
@@ -34,7 +34,7 @@ void setup() {
   pinMode(releContacto, OUTPUT);
   pinMode(releFan, OUTPUT);
   pinMode(releTransfer, OUTPUT);
-  pinMode(releMotorArranque, OUTPUT);
+  pinMode(releStarter, OUTPUT);
   pinMode(monitorArranque, INPUT);
   pinMode(sensorLuz, INPUT);
   pinMode(buzzer, OUTPUT);
@@ -128,7 +128,7 @@ void intentarArrancar() {
   bool arranqueExitoso = false;
 
   while (intentosArranque < 3 && !arranqueExitoso) {
-    digitalWrite(releMotorArranque, HIGH); // Activa el motor de arranque
+    digitalWrite(releStarter, HIGH); // Activa el motor de arranque
     digitalWrite(ledArranque, HIGH);
     lcd.setCursor(0, 1);
     lcd.print("Arrancando motor...");
@@ -142,7 +142,7 @@ void intentarArrancar() {
       delay(100); // Pequeña pausa para no saturar la lectura del pin
     }
 
-    digitalWrite(releMotorArranque, LOW); // Desactiva el motor de arranque
+    digitalWrite(releStarter, LOW); // Desactiva el motor de arranque
     digitalWrite(ledArranque, LOW);
 
     if (!arranqueExitoso) {
