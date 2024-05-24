@@ -1,5 +1,4 @@
-// Versión sin función completa de arranque, para pruebas únicamente. Esquema de circuito en el archivo gen.png
-// Versión con función de arranque completa en el archivo gen_v2.ino
+// Archivo con función de arranque
 
 #include <Wire.h>
 #include <Servo.h>
@@ -22,6 +21,7 @@ bool generadorEnMarcha = false;
 bool luzPrevia = true; // Asumimos que inicialmente hay luz
 int intentosArranque = 0;
 int arranqueRestart = 0;
+float voltajeBateria = 0.0;
 
 unsigned long tiempoInicioGenerador = 0; // Almacenar el tiempo de inicio del generador
 
@@ -137,11 +137,22 @@ void intentarArrancar() {
     lcd.print("Arrancando motor...");
     
     unsigned long startTime = millis(); // Tiempo inicial
+    bool motorGirando = false; // Flag para indicar si el motor de arranque está girando
+    
     while (millis() - startTime < 5000) { // Período de 5 segundos para intentar arrancar
-      if (digitalRead(monitorArranque)) {
+       voltajeBateria = (analogRead(A0) / 1023.0) * 5.0 * (22000.0 + 10000.0) / 10000.0;
+      
+      // Si el voltaje cae por debajo de un umbral, consideramos que el motor está girando
+      if (voltajeBateria < 9.9) {
+        motorGirando = true;
+      }
+      
+      // Si el voltaje vuelve a subir, y el motor estaba girando, consideramos que ha arrancado
+      if (voltajeBateria > 10.0 && motorGirando) {
         arranqueExitoso = true;
         break; // Sale del ciclo si el motor arranca
       }
+      
       delay(100); // Pequeña pausa para no saturar la lectura del pin
     }
 
@@ -157,13 +168,10 @@ void intentarArrancar() {
       lcd.setCursor(15,1);
       lcd.print(intentosArranque);
       delay(5000); // Espera antes del próximo intento
+    } else {
+      // Si el arranque fue exitoso, salir del bucle y continuar con el resto de la lógica
+      break;
     }
-  }
-
-  if (arranqueExitoso) {
-    operacionNormal();
-  } else {
-    estadoError(); // Va al estado de error si no arranca después de 3 intentos
   }
 }
 
