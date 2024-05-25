@@ -7,12 +7,24 @@
 // Configuración del display I2C
 LiquidCrystal_I2C lcd(0x20, 16, 2);
 
+/********************************
+    Variables modificables:
+********************************/
+
+
+
+
+
+
 // Definición de pines
 const int ledCorte = 2, ledVerde = 3, ledArranque = 4, ledFan = 5, ledWaiting = 6, ledTransfer = 7;
 const int releContacto = 8, releFan = 10, releTransfer = 11;
-const int releStarter = 12, monitorArranque = A2, ledFallo = A3;
+const int releStarter = 12, ledFallo = 1;
+// const int monitorArranque = A2; // Eliminado
 const int sensorLuz = 13;
 const int buzzer = 0;
+const int sensorPCB = A1;   // Pin analógico para el sensor de PCB SIN USO
+const int sensorAuxiliar = A2;  // Pin analógico para el sensor auxiliar SIN USO
 
 Servo servoChoke;  // Crear objeto Servo para controlar el choke
 
@@ -40,7 +52,7 @@ void setup() {
   pinMode(releFan, OUTPUT);
   pinMode(releTransfer, OUTPUT);
   pinMode(releStarter, OUTPUT);
-  pinMode(monitorArranque, INPUT);
+  // pinMode(monitorArranque, INPUT); // Eliminado
   pinMode(sensorLuz, INPUT);
   pinMode(buzzer, OUTPUT);
   
@@ -293,12 +305,15 @@ void restablecerSistema() {
     lcd.print("Contacto OFF");
     delay(250);
     
+    //REVISAR; FUNCION ELIMINADA, CREAR OTRA
     // Espera activa hasta que el motor se haya apagado
-    while (digitalRead(monitorArranque)) { // Mientras esté encendido, esperar
-      lcd.setCursor(0, 1);
-      lcd.print("Esperando motor");
-      delay(100); // Pequeña pausa para no saturar el bucle
-    }
+   // while (digitalRead(monitorArranque)) { // Mientras esté encendido, esperar
+   //   lcd.setCursor(0, 1);
+   //   lcd.print("Esperando motor");
+   //   delay(100); // Pequeña pausa para no saturar el bucle
+   // }
+
+   delay(1000); // Pequeña pausa
     
     digitalWrite(ledWaiting, HIGH); // Encender LED WAITING
     digitalWrite(ledVerde, LOW); // Apagar LED motor arrancado
