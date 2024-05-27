@@ -183,15 +183,13 @@ void intentarArrancar() {
       lcd.print(intentosArranque);
       delay(5000); // Espera antes del próximo intento
     }
+  }
     //AÑADIDO DE VUELTA
     if (arranqueExitoso) {
         operacionNormal();
     } else {
         estadoError(); // Va al estado de error si no arranca después de 3 intentos
     }
-
-      break;
-  }
 }
 
 
