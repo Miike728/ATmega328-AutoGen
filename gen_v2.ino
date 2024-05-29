@@ -21,7 +21,7 @@ const int ledCorte = 2, ledVerde = 3, ledArranque = 4, ledFan = 5, ledWaiting = 
 const int releContacto = 8, releFan = 10, releTransfer = 11;
 const int releStarter = 12, ledFallo = 1;
 // const int monitorArranque = A2; // Eliminado
-const int sensorLuz = 13;
+const int detectorCorte = 13;
 const int buzzer = 0;
 const int sensorPCB = A1;   // Pin analógico para el sensor de PCB SIN USO
 const int sensorAuxiliar = A2;  // Pin analógico para el sensor auxiliar SIN USO
@@ -34,6 +34,8 @@ bool luzPrevia = true; // Asumimos que inicialmente hay luz
 int intentosArranque = 0;
 int arranqueRestart = 0;
 float voltajeBateria = 0.0;
+int lecturaPCB = 0; // Lectura del sensor de PCB
+int lecturaAuxiliar = 0; // Lectura del sensor auxiliar
 
 unsigned long tiempoInicioGenerador = 0; // Almacenar el tiempo de inicio del generador
 
@@ -51,7 +53,7 @@ void setup() {
   pinMode(releTransfer, OUTPUT);
   pinMode(releStarter, OUTPUT);
   // pinMode(monitorArranque, INPUT); // Eliminado
-  pinMode(sensorLuz, INPUT);
+  pinMode(detectorCorte, INPUT);
   pinMode(buzzer, OUTPUT);
   
   digitalWrite(ledWaiting, HIGH); // LED WAITING encendido inicialmente
@@ -73,15 +75,23 @@ void setup() {
   // Mostrar mensaje de espera
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Esperando fallo");
-  lcd.setCursor(0, 1);
-  lcd.print("de suministro...");
+  lcd.print("Esperando corte");
 }
 
 void loop() { ///////////////REVISAR
-  bool luzActual = digitalRead(sensorLuz);
+  bool luzActual = digitalRead(detectorCorte);
   static unsigned long luzVueltaTiempo = 0; // Almacenar cuándo la luz regresó por primera vez
   bool luzEstable = false;
+
+  // Lectura de sensores
+  lecturaPCB = analogRead(sensorPCB);
+  float temperaturaPCB = convertirTemperatura(lecturaPCB);
+  lecturaAuxiliar = analogRead(sensorAuxiliar);
+  float temperaturaAuxiliar = convertirTemperatura(lecturaAuxiliar);
+  lcd.setCursor(0, 1);
+  lcd.print(temperaturaPCB);
+  lcd.setCursor(6, 1);
+  lcd.print("C");
 
   // Detectar corte de luz
   if (!luzActual && luzPrevia) {
@@ -229,19 +239,20 @@ void operacionNormal() {
   delay(1000);
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Sin suministro!");
-  lcd.setCursor(0, 1);
   lcd.print("Generador ON");
+  lcd.setCursor(0, 1);
+  lcd.print("                ");
   generadorEnMarcha = true;
 }
 
 void estadoError() {
   lcd.clear();
+  abrirAire(); // Abrir el aire en caso de error
+  lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("ERROR! Revisar!");
   lcd.setCursor(0, 1);
   lcd.print("Motor no arranca");
-  abrirAire(); // Abrir el aire en caso de error
   digitalWrite(releContacto, LOW);
   
   while (true) {
@@ -329,12 +340,19 @@ void restablecerSistema() {
     generadorEnMarcha = false;
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Esperando fallo");
+    lcd.print("Esperando corte");
     lcd.setCursor(0, 1);
-    lcd.print("de suministro...");
+    lcd.print("                ");
 
     arranqueRestart = 0; // Reiniciar el contador de arranques para la próxima vez
   }
+}
+
+float convertirTemperatura(int lectura) {
+  // Suponiendo una relación lineal entre la lectura y la temperatura
+  // Ajusta estos valores según la calibración de tus sensores
+  float temperatura = (lectura / 1023.0) * 125.0; // Suponiendo una temperatura máxima de 125 °C
+  return temperatura;
 }
 
 void beep(int pin, int count, int duration) {
