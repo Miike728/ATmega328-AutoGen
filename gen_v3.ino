@@ -99,7 +99,7 @@ void setup() {
   digitalWrite(ledFallo, HIGH); // Encender LED de fallo
   delay(250);
   digitalWrite(ledFallo, LOW); // Apagar LED de fallo
-  beep(buzzer, 1, 500); // 1 pitido
+  beepInfo(); // Aviso sonoro de información
   
   digitalWrite(releContacto, HIGH); // Apagar contacto (funciona al revés)
   digitalWrite(ledWaiting, HIGH); // Encender LED WAITING
@@ -160,9 +160,9 @@ void loop() { ///////////////REVISAR
 
 void alertaCorteLuz() {
   digitalWrite(ledCorte, HIGH);
-  beep(buzzer, 3, 200); // 3 pitidos cortos
+  beepWarning(); // Aviso sonoro de advertencia
   lcd.clear();
-  lcd.print("Fallo detectado!");
+  lcd.print("Corte detectado!");
 }
 
 void iniciarGenerador() {
@@ -174,7 +174,7 @@ void iniciarGenerador() {
     lcd.print("Preparando...");
     delay(1000); // Esperar 1 segundo antes de intentar arrancar
     cerrarAire(); // Cerrar el aire
-    beep(buzzer, 1, 200); // 1 pitido corto para Aire
+    beepInfo(); // Aviso sonoro de información
     lcd.setCursor(0, 1);
     lcd.print("Aire cerrado");
     delay(500);
@@ -187,6 +187,12 @@ void intentarArrancar() {
   bool arranqueExitoso = false;
 
   while (intentosArranque < 3 && !arranqueExitoso) {
+    // Verifica el voltaje de la batería antes de intentar arrancar
+    if (verificarBateriaBaja()) {
+      estadoErrorBateriaBaja();
+      return; // Sale de la función si la batería está baja
+    }
+
      // Configura el aire según el intento
     if (intentosArranque == 1) {
       abrirAire(); // Abre el aire en el segundo intento
@@ -241,6 +247,7 @@ void intentarArrancar() {
       lcd.print("Fallo arranque ");
       lcd.setCursor(15,1);
       lcd.print(intentosArranque);
+      beepWarning(); // Aviso sonoro de advertencia
       delay(5000); // Espera antes del próximo intento
       digitalWrite(releContacto, LOW); // Encender contacto (inverso) para el próximo intento
     }
@@ -265,14 +272,14 @@ void operacionNormal() {
   digitalWrite(ledArranque, LOW);
   lcd.setCursor(0, 1);
   lcd.print("                ");
-  beep(buzzer, 1, 200); // 1 pitido corto para avisar
+  beepInfo(); // Aviso sonoro de información
   lcd.setCursor(0, 1);
   lcd.print("Esperando aire...");
   delay(750); // Pequeña pausa antes de abrir el aire para evitar que se apague
   lcd.print("Aire abierto");
   delay(250);
   
-  beep(buzzer, 2, 200); // Confirmación de arranque
+  beepInfo(); // Aviso sonoro de información
   digitalWrite(releFan, HIGH);
   digitalWrite(ledFan, HIGH);
   lcd.setCursor(0, 1);
@@ -309,7 +316,7 @@ void estadoError() {
   while (true) {
     // Mantiene el sistema en un estado de error
     digitalWrite(ledFallo, HIGH);
-    beep(buzzer, 1, 1000); // Emite un pitido largo continuamente
+    beepError(); // Aviso sonoro de error grave
     digitalWrite(ledFallo, LOW);
     delay(2000); // Espera entre pitidos
   }
@@ -317,7 +324,7 @@ void estadoError() {
 
 void restablecerSistema() {
   if (generadorEnMarcha) {
-    beep(buzzer, 5, 200); // 5 pitidos cortos
+    beepInfo(); // Aviso sonoro de información
     digitalWrite(ledCorte, LOW); // Apagar LED de alerta de corte
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -368,7 +375,9 @@ void restablecerSistema() {
     lcd.clear();
     lcd.setCursor(0, 1);
     lcd.print("Motor apagado");
-    beep(buzzer, 3, 1000); // 3 pitidos largos
+    beepInfo(); // Aviso sonoro de información
+    delay(100);
+    beepInfo(); // Aviso sonoro de información
      // Función para mostrar el tiempo de funcionamiento del generador al apagarse
     unsigned long tiempoFuncionamiento = (millis() - tiempoInicioGenerador) / 1000; // Tiempo en segundos
     lcd.setCursor(0, 0);
@@ -406,12 +415,48 @@ float convertirTemperatura(int lectura) {
   return temperatura;
 }
 
-void beep(int pin, int count, int duration) {
-  for (int i = 0; i < count; i++) {
-    digitalWrite(pin, HIGH);
-    delay(duration);
-    digitalWrite(pin, LOW);
-    delay(200);
+void beep(int pin, int frequency, int duration, int pause) {
+  tone(pin, frequency, duration);
+  delay(duration + pause);
+  noTone(pin);
+}
+
+// Funciones específicas para diferentes tipos de avisos
+void beepInfo() {
+  beep(buzzer, 1000, 200, 100);
+}
+
+void beepWarning() {
+  for (int i = 0; i < 2; i++) {
+    beep(buzzer, 1500, 200, 100);
+  }
+}
+
+void beepError() {
+  for (int i = 0; i < 3; i++) {
+    beep(buzzer, 2000, 500, 300);
+  }
+}
+
+bool verificarBateriaBaja() {
+  voltajeBateria = (analogRead(A0) / 1023.0) * 5.0 * (22000.0 + 10000.0) / 10000.0;
+  return voltajeBateria < 11.4;
+}
+
+void estadoErrorBateriaBaja() {
+  lcd.clear();
+  abrirAire(); // Abrir el aire en caso de error
+  lcd.setCursor(0, 0);
+  lcd.print("ERROR! Revisar!");
+  lcd.setCursor(0, 1);
+  lcd.print("Bateria baja.");
+  digitalWrite(releContacto, HIGH); // Apagar contacto (inverso)
+  
+  while (true) {
+    digitalWrite(ledFallo, HIGH);
+    beepError(); // Aviso sonoro de error grave
+    digitalWrite(ledFallo, LOW);
+    delay(2000); // Espera entre pitidos
   }
 }
 
