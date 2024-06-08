@@ -6,6 +6,7 @@
 
 // Configuración del display I2C
 LiquidCrystal_I2C lcd(0x20, 16, 2);
+// LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 /********************************
     Variables modificables:
@@ -17,13 +18,13 @@ LiquidCrystal_I2C lcd(0x20, 16, 2);
 
 
 // Definición de pines
-const int ledCorte = 2, ledVerde = 3, ledArranque = 4, ledFan = 5, ledWaiting = 6, ledTransfer = 7;
+const int ledCorte = 2, ledMotorOn = 3, ledArranque = 4, ledFan = 5, ledWaiting = 6, ledTransfer = 7;
 const int releContacto = 8, releFan = 10, releTransfer = 11;
 const int releStarter = 12, ledFallo = 1;
 // const int monitorArranque = A2; // Eliminado
 const int detectorCorte = 13;
 const int buzzer = 0;
-const int sensorPCB = A1;   // Pin analógico para el sensor de PCB SIN USO
+const int sensorPCB = A1;   // Pin analógico para el sensor de PCB
 const int sensorAuxiliar = A2;  // Pin analógico para el sensor auxiliar SIN USO
 
 Servo servoChoke;  // Crear objeto Servo para controlar el choke
@@ -41,7 +42,7 @@ unsigned long tiempoInicioGenerador = 0; // Almacenar el tiempo de inicio del ge
 
 void setup() {
   pinMode(ledCorte, OUTPUT);
-  pinMode(ledVerde, OUTPUT);
+  pinMode(ledMotorOn, OUTPUT);
   pinMode(ledArranque, OUTPUT);
   pinMode(ledFan, OUTPUT);
   pinMode(ledWaiting, OUTPUT);
@@ -62,6 +63,7 @@ void setup() {
   lcd.init();
   lcd.backlight();
 
+  // Test inicial de componentes
   lcd.setCursor(0, 0);
   lcd.print("Inicializando...");
   servoChoke.attach(9);  // Adjuntar el servo al pin 9
@@ -71,6 +73,28 @@ void setup() {
   servoChoke.write(0);   // Empezar con el choke cerrado (ajustar)//////////////
   delay(1000);
   servoChoke.write(120); // Dejar abierto (ajustar)////////////////
+  digitalWrite(ledWaiting, HIGH); // Encender LED WAITING
+  delay(250);
+  digitalWrite(ledWaiting, LOW); // Apagar LED WAITING
+  digitalWrite(ledCorte, HIGH); // Encender LED de alerta de corte
+  delay(250);
+  digitalWrite(ledCorte, LOW); // Apagar LED de alerta de corte
+  digitalWrite(ledMotorOn, HIGH); // Encender LED de arranque
+  delay(250);
+  digitalWrite(ledMotorOn, LOW); // Apagar LED de arranque
+  digitalWrite(ledArranque, HIGH); // Encender LED de motor arrancado
+  delay(250);
+  digitalWrite(ledArranque, LOW); // Apagar LED de motor arrancado
+  digitalWrite(ledFan, HIGH); // Encender LED de ventilación
+  delay(250);
+  digitalWrite(ledFan, LOW); // Apagar LED de ventilación
+  digitalWrite(ledTransfer, HIGH); // Encender LED de transferencia
+  delay(250);
+  digitalWrite(ledTransfer, LOW); // Apagar LED de transferencia
+  digitalWrite(ledFallo, HIGH); // Encender LED de fallo
+  delay(250);
+  digitalWrite(ledFallo, LOW); // Apagar LED de fallo
+  beep(buzzer, 1, 500); // 1 pitido
   
   // Mostrar mensaje de espera
   lcd.clear();
@@ -163,16 +187,16 @@ void intentarArrancar() {
     unsigned long startTime = millis(); // Tiempo inicial
     bool motorGirando = false; // Flag para indicar si el motor de arranque está girando
     
-    while (millis() - startTime < 5000) { // Período de 5 segundos para intentar arrancar
+    while (millis() - startTime < 3000) { // Período de 3 segundos para intentar arrancar
         voltajeBateria = (analogRead(A0) / 1023.0) * 5.0 * (22000.0 + 10000.0) / 10000.0;
       
       // Si el voltaje cae por debajo de un umbral, consideramos que el motor está girando
-      if (voltajeBateria < 9.9) {
+      if (voltajeBateria < 10.1) {
         motorGirando = true;
       }
       
       // Si el voltaje vuelve a subir, y el motor estaba girando, consideramos que ha arrancado
-      if (voltajeBateria > 10.0 && motorGirando) {
+      if (voltajeBateria > 10.1 && motorGirando) {
         arranqueExitoso = true;
         break; // Sale del ciclo si el motor arranca
       }
@@ -209,7 +233,7 @@ void operacionNormal() {
   lcd.print("                ");
   lcd.setCursor(0, 1);
   lcd.print("Motor arrancado");
-  digitalWrite(ledVerde, HIGH);
+  digitalWrite(ledMotorOn, HIGH);
   abrirAire(); // Abrir el aire después de arrancar
   digitalWrite(ledArranque, LOW);
   lcd.setCursor(0, 1);
@@ -313,7 +337,7 @@ void restablecerSistema() {
    delay(1000); // Pequeña pausa
     
     digitalWrite(ledWaiting, HIGH); // Encender LED WAITING
-    digitalWrite(ledVerde, LOW); // Apagar LED motor arrancado
+    digitalWrite(ledMotorOn, LOW); // Apagar LED motor arrancado
     lcd.clear();
     lcd.setCursor(0, 1);
     lcd.print("Motor apagado");
