@@ -189,6 +189,10 @@ void intentarArrancar() {
   intentosArranque = 0;
   bool arranqueExitoso = false;
 
+  // Leer voltaje inicial de la batería antes de intentar arrancar
+  double voltajeBateria = ((analogRead(A0) / 1023.0) * 5.0 * (22000.0 + 10000.0) / 10000.0);
+  double voltajeAnterior = voltajeBateria;
+
   while (intentosArranque < 3 && !arranqueExitoso) {
     // Verifica el voltaje de la batería antes de intentar arrancar
     if (verificarBateriaBaja()) {
@@ -221,18 +225,22 @@ void intentarArrancar() {
     unsigned long startTime = millis(); // Tiempo inicial
     bool motorGirando = false; // Flag para indicar si el motor de arranque está girando
     
-    while (millis() - startTime < 3000) { // Período de 3 segundos para intentar arrancar
-        voltajeBateria = (analogRead(A0) / 1023.0) * 5.0 * (22000.0 + 10000.0) / 10000.0;
+    while (millis() - startTime < 2000) { // Período de 2 segundos para intentar arrancar
+      voltajeBateria = ((analogRead(A0) / 1023.0) * 5.0 * (22000.0 + 10000.0) / 10000.0);
       
-      // Si el voltaje cae por debajo de un umbral, consideramos que el motor está girando
-      if (voltajeBateria < 10.1) {
+      // Si el voltaje cae 2V o más desde el valor inicial, el motor está girando
+      if (!motorGirando && (voltajeAnterior - voltajeBateria >= 2.0)) {
         motorGirando = true;
+        digitalWrite(ledArranque, HIGH); // Encender LED de arranque
+        voltajeAnterior = voltajeBateria;
       }
       
-      // Si el voltaje vuelve a subir, y el motor estaba girando, consideramos que ha arrancado
-      if (voltajeBateria > 10.1 && motorGirando) {
+      // Si el voltaje sube 1.5V desde el valor de caída, el motor ha arrancado
+      if (motorGirando && (voltajeBateria - voltajeAnterior >= 1.0)) {
         arranqueExitoso = true;
-        break; // Sale del ciclo si el motor arranca
+        digitalWrite(ledArranque, LOW); // Apagar LED de arranque
+        digitalWrite(ledMotorOn, HIGH); // Encender LED de motor en marcha
+        break; // Salir del ciclo si el motor arranca
       }
       
       delay(100); // Pequeña pausa para no saturar la lectura del pin
