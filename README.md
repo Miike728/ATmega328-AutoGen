@@ -8,6 +8,7 @@ Este proyecto consiste en un sistema de control automático para un generador el
 - **Detección automática de cortes de luz**: El sistema utiliza un sensor de voltaje para detectar la pérdida de energía eléctrica y activar el generador.
 - **Control de arranque y parada**: Gestiona el arranque del generador mediante relés y monitorea el estado del motor para asegurar que arranque y se detenga correctamente.
 - **Seguridad y reintentos de arranque**: Intenta arrancar el generador hasta tres veces en caso de fallo; si no arranca, entra en un estado de error para proteger el motor de arranque.
+- **Control del voltaje de batería**: Tiene en cuenta el voltaje de la batería, si este es muy bajo no arrancará por seguridad. Utiliza un divisor de voltaje con resistencias para este fin.
 - **Información en tiempo real**: Muestra el estado actual del sistema y el tiempo de funcionamiento del generador en un display LCD.
 - **Restablecimiento automático**: Desactiva el generador y vuelve al estado de espera una vez que la energía eléctrica se ha restablecido y se mantiene estable durante 5 segundos (modificable).
 
@@ -17,8 +18,10 @@ Este proyecto consiste en un sistema de control automático para un generador el
 - Relés para control de motor y otros componentes
 - Contactor para el transfer
 - LEDs para indicación de estado
-- Zumbador para alertas auditivas
+- Zumbador pasivo para alertas auditivas
 - Sensores para detección de estado del generador y presencia de energía eléctrica
+- Sensor **MCP9701-E/TO** para la temperatura
+- Resistencias 22k y 10k para medir el voltaje de la batería
 
 ## Esquema del circuito
 El esquema del circuito incluye conexiones entre el Arduino Uno y los relés, sensores, LEDs, y el display LCD. (Aún no disponible)
