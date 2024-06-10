@@ -23,7 +23,7 @@ LiquidCrystal_I2C lcd(0x20, 16, 2); // Simulación
 
 
 // Definición de pines
-const int ledCorte = 2, ledMotorOn = 3, ledArranque = 4, ledFan = 5, ledWaiting = 6, ledTransfer = 7;
+const int ledCorte = 2, ledMotorOn = 3, ledStarting = 4, ledFan = 5, ledWaiting = 6, ledTransfer = 7;
 const int releContacto = 8, releFan = 10, releTransfer = 11;
 const int releStarter = 12, ledFallo = 1;
 // const int monitorArranque = A2; // Eliminado
@@ -51,7 +51,7 @@ unsigned long tiempoInicioGenerador = 0; // Almacenar el tiempo de inicio del ge
 void setup() {
   pinMode(ledCorte, OUTPUT);
   pinMode(ledMotorOn, OUTPUT);
-  pinMode(ledArranque, OUTPUT);
+  pinMode(ledStarting, OUTPUT);
   pinMode(ledFan, OUTPUT);
   pinMode(ledWaiting, OUTPUT);
   pinMode(ledTransfer, OUTPUT);
@@ -87,9 +87,9 @@ void setup() {
   digitalWrite(ledCorte, HIGH); // Encender LED de alerta de corte
   delay(250);
   digitalWrite(ledCorte, LOW); // Apagar LED de alerta de corte
-  digitalWrite(ledArranque, HIGH); // Encender LED de motor arrancado
+  digitalWrite(ledStarting, HIGH); // Encender LED de motor arrancado
   delay(250);
-  digitalWrite(ledArranque, LOW); // Apagar LED de motor arrancado
+  digitalWrite(ledStarting, LOW); // Apagar LED de motor arrancado
   digitalWrite(ledMotorOn, HIGH); // Encender LED de arranque
   delay(250);
   digitalWrite(ledMotorOn, LOW); // Apagar LED de arranque
@@ -218,7 +218,7 @@ void intentarArrancar() {
     }
 
     digitalWrite(releStarter, HIGH); // Activa el motor de arranque
-    digitalWrite(ledArranque, HIGH);
+    digitalWrite(ledStarting, HIGH);
     lcd.setCursor(0, 1);
     lcd.print("Arrancando motor...");
     
@@ -231,14 +231,14 @@ void intentarArrancar() {
       // Si el voltaje cae 2V o más desde el valor inicial, el motor está girando
       if (!motorGirando && (voltajeAnterior - voltajeBateria >= 2.0)) {
         motorGirando = true;
-        digitalWrite(ledArranque, HIGH); // Encender LED de arranque
+        digitalWrite(ledStarting, HIGH); // Encender LED de arranque
         voltajeAnterior = voltajeBateria;
       }
       
       // Si el voltaje sube 1.5V desde el valor de caída, el motor ha arrancado
-      if (motorGirando && (voltajeBateria - voltajeAnterior >= 1.0)) {
+      if (motorGirando && (voltajeBateria - voltajeAnterior >= 1.0)) { // AJUSTAR / REVISAR
         arranqueExitoso = true;
-        digitalWrite(ledArranque, LOW); // Apagar LED de arranque
+        digitalWrite(ledStarting, LOW); // Apagar LED de arranque
         digitalWrite(ledMotorOn, HIGH); // Encender LED de motor en marcha
         break; // Salir del ciclo si el motor arranca
       }
@@ -247,7 +247,7 @@ void intentarArrancar() {
     }
 
     digitalWrite(releStarter, LOW); // Desactiva el motor de arranque
-    digitalWrite(ledArranque, LOW);
+    digitalWrite(ledStarting, LOW);
 
     if (!arranqueExitoso) {
       intentosArranque++;
@@ -273,14 +273,14 @@ void intentarArrancar() {
 
 
 void operacionNormal() {
-  digitalWrite(ledArranque, HIGH);
+  digitalWrite(ledStarting, HIGH);
   lcd.setCursor(0, 1);
   lcd.print("                ");
   lcd.setCursor(0, 1);
   lcd.print("Motor arrancado");
   digitalWrite(ledMotorOn, HIGH);
   abrirAire(); // Abrir el aire después de arrancar
-  digitalWrite(ledArranque, LOW);
+  digitalWrite(ledStarting, LOW);
   lcd.setCursor(0, 1);
   lcd.print("                ");
   beepInfo(); // Aviso sonoro de información
