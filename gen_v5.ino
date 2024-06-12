@@ -1,6 +1,8 @@
 // Archivo con función de arranque
-
 // Función de contacto invertida
+
+
+
 
 /********************************
     Bibliotecas requeridas:
@@ -14,13 +16,24 @@ LiquidCrystal_I2C lcd(0x20, 16, 2); // Simulación
 // LiquidCrystal_I2C lcd(0x27, 16, 2); // Realidad
 
 /********************************
-    Variables modificables:
+    Constantes y variables 
+    modificables:
 ********************************/
+// Constantes de tiempo del ventilador
+const unsigned long TIEMPO_INICIAL_VENTILADOR = 10000; // Tiempo que pasa encendido el ventilador al arrancar
+const unsigned long INTERVALO_MOVIMIENTO_AIRE = 180000; // Tiempo hasta que se encienda para mover el aire de la sala (esto solo funciona si el ventilador no se activa por temperatura)
+const unsigned long DURACION_MOVIMIENTO_AIRE = 15000; // Tiempo que pasa encendido el ventilador para mover el aire
+const unsigned long TIEMPO_MAXIMO_VENTILADOR = 300000; // Tiempo máximo que puede estar encendido el ventilador
+const unsigned long TIEMPO_DESCANSO_VENTILADOR = 30000; // Tiempo de descanso del ventilador tras estar encendido
+
+// Valores de temperatura del ventilador
+const float TEMPERATURA_ENCENDIDO = 40.0; // Enciende a 40°C
+const float TEMPERATURA_APAGADO = 35.0; // Apaga a 35°C
 
 
-
-
-
+/********************************
+ -------------------------------
+********************************/
 
 // Definición de pines
 const int ledCorte = 2, ledMotorOn = 3, ledStarting = 4, ledFan = 5, ledWaiting = 6, ledTransfer = 7;
@@ -46,7 +59,17 @@ int intentosArranque = 0;
 int arranqueRestart = 0;
 float voltajeBateria = 0.0;
 
-unsigned long tiempoInicioGenerador = 0; // Almacenar el tiempo de inicio del generador
+// Variable de tiempo de inicio del generador
+unsigned long tiempoInicioGenerador = 0;
+
+// Variables de estado del ventilador
+unsigned long tiempoInicioVentilador = 0;
+unsigned long tiempoInicioMovimientoAire = 0;
+unsigned long tiempoVentiladorEncendido = 0;
+unsigned long tiempoProteccionVentilador = 0;
+bool ventiladorEncendido = false;
+bool movimientoAireActivo = false;
+bool enPausaProteccion = false;
 
 void setup() {
   pinMode(ledCorte, OUTPUT);
@@ -107,10 +130,16 @@ void setup() {
   digitalWrite(releContacto, HIGH); // Apagar contacto (funciona al revés)
   digitalWrite(ledWaiting, HIGH); // Encender LED WAITING
 
+  // Leer temperatura actual del PCB
+  float temperaturaPCB = leerTemperaturaPCB();
+
   // Mostrar mensaje de espera
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Esperando corte");
+  
+  // Apagar backlight del LCD para ahorrar
+  lcd.noBacklight();
 }
 
 void loop() { ///////////////REVISAR
@@ -119,7 +148,7 @@ void loop() { ///////////////REVISAR
   bool luzEstable = false;
 
   // Lectura de sensores
-  float temperaturaPCB = leerTemperaturaPCB();
+  temperaturaPCB = leerTemperaturaPCB();
   // Obsoleto / Eliminar:
   // lecturaAuxiliar = analogRead(sensorAuxiliar);
   // float temperaturaAuxiliar = convertirTemperatura(lecturaAuxiliar); 
@@ -127,6 +156,8 @@ void loop() { ///////////////REVISAR
   lcd.print(temperaturaPCB);
   lcd.setCursor(6, 1);
   lcd.print("C");
+
+  controlarVentilador(); // Control del ventilador basado en la temperatura
 
   // Detectar corte de luz
   if (!luzActual && luzPrevia) {
@@ -166,6 +197,7 @@ void alertaCorteLuz() {
   beepWarning(); // Aviso sonoro de advertencia
   lcd.clear();
   lcd.print("Corte detectado!");
+  lcd.backlight(); // Encender backlight del LCD
 }
 
 void iniciarGenerador() {
@@ -207,6 +239,7 @@ void intentarArrancar() {
       lcd.print("                ");
       lcd.setCursor(0, 1);
       lcd.print("Aire abierto");
+      beepInfo(); // Aviso sonoro de información
       delay(750); // Pequeña pausa para que de tiempo
     } else {
       cerrarAire(); // Cierra el aire en el primer y tercer intento
@@ -214,11 +247,15 @@ void intentarArrancar() {
       lcd.print("                ");
       lcd.setCursor(0, 1);
       lcd.print("Aire cerrado");
+      beepInfo(); // Aviso sonoro de información
       delay(750); // Pequeña pausa para que de tiempo
     }
 
     digitalWrite(releStarter, HIGH); // Activa el motor de arranque
     digitalWrite(ledStarting, HIGH);
+
+    beepArranque(); // Aviso sonoro de arranque
+
     lcd.setCursor(0, 1);
     lcd.print("Arrancando motor...");
     
@@ -273,17 +310,16 @@ void intentarArrancar() {
 
 
 void operacionNormal() {
-  digitalWrite(ledStarting, HIGH);
   lcd.setCursor(0, 1);
   lcd.print("                ");
   lcd.setCursor(0, 1);
   lcd.print("Motor arrancado");
   digitalWrite(ledMotorOn, HIGH);
-  abrirAire(); // Abrir el aire después de arrancar
   digitalWrite(ledStarting, LOW);
   lcd.setCursor(0, 1);
   lcd.print("                ");
   beepInfo(); // Aviso sonoro de información
+  abrirAire(); // Abrir el aire después de arrancar
   lcd.setCursor(0, 1);
   lcd.print("Esperando aire...");
   delay(750); // Pequeña pausa antes de abrir el aire para evitar que se apague
@@ -327,8 +363,10 @@ void estadoError() {
   while (true) {
     // Mantiene el sistema en un estado de error
     digitalWrite(ledFallo, HIGH);
+    backlight(); // Encender backlight del LCD
     beepError(); // Aviso sonoro de error grave
     digitalWrite(ledFallo, LOW);
+    noBacklight(); // Apagar backlight del LCD
     delay(2000); // Espera entre pitidos
   }
 }
@@ -379,7 +417,7 @@ void restablecerSistema() {
    //   delay(100); // Pequeña pausa para no saturar el bucle
    // }
 
-   delay(1000); // Pequeña pausa
+    delay(1000); // Pequeña pausa
     
     digitalWrite(ledWaiting, HIGH); // Encender LED WAITING
     digitalWrite(ledMotorOn, LOW); // Apagar LED motor arrancado
@@ -414,6 +452,7 @@ void restablecerSistema() {
     lcd.print("Esperando corte");
     lcd.setCursor(0, 1);
     lcd.print("                ");
+    noBacklight(); // Apagar backlight del LCD
 
     arranqueRestart = 0; // Reiniciar el contador de arranques para la próxima vez
   }
@@ -443,7 +482,13 @@ void beep(int pin, int frequency, int duration, int pause) {
 
 // Funciones específicas para diferentes tipos de avisos
 void beepInfo() {
-  beep(buzzer, 1000, 200, 100);
+  beep(buzzer, 1000, 200, 100); // 1000Hz, 200ms sonido, 100ms pausa
+}
+
+void beepArranque() {
+  for (int i = 0; i < 3; i++) {
+    beep(buzzer, 2000, 500, 250);
+  }
 }
 
 void beepWarning() {
@@ -474,8 +519,10 @@ void estadoErrorBateriaBaja() {
   
   while (true) {
     digitalWrite(ledFallo, HIGH);
+    backlight(); // Encender backlight del LCD
     beepError(); // Aviso sonoro de error grave
     digitalWrite(ledFallo, LOW);
+    noBacklight(); // Apagar backlight del LCD
     delay(2000); // Espera entre pitidos
   }
 }
@@ -495,4 +542,77 @@ void abrirAire() {
   lcd.print("                ");
   lcd.setCursor(0, 1);
   lcd.print("Aire abierto");
+}
+
+// Función para controlar el ventilador
+void controlarVentilador() {
+  if (!generadorEnMarcha) {
+    // Si el generador no está en marcha, apagamos el ventilador y reiniciamos contadores
+    digitalWrite(releFan, LOW);
+    digitalWrite(ledFan, LOW);
+    ventiladorEncendido = false;
+    movimientoAireActivo = false;
+    enPausaProteccion = false;
+    tiempoInicioVentilador = 0;
+    tiempoInicioMovimientoAire = 0;
+    tiempoVentiladorEncendido = 0;
+    tiempoProteccionVentilador = 0;
+    return;
+  }
+
+  // Leer temperatura actual del PCB
+  temperaturaPCB = leerTemperaturaPCB();
+
+  // Control inicial: encender el ventilador al arrancar por 10 segundos
+  if (tiempoInicioVentilador == 0) {
+    digitalWrite(releFan, HIGH);
+    degitalWrite(ledFan, HIGH);
+    tiempoInicioVentilador = millis();
+    ventiladorEncendido = true;
+  } else if (millis() - tiempoInicioVentilador > TIEMPO_INICIAL_VENTILADOR && !enPausaProteccion) {
+    digitalWrite(releFan, LOW);
+    digitalWrite(ledFan, LOW);
+    ventiladorEncendido = false;
+    tiempoInicioVentilador = millis(); // Reiniciar tiempo inicial para la siguiente operación
+  }
+
+  // Protección del ventilador: Apagar si ha estado encendido más de 5 minutos
+  if (ventiladorEncendido && millis() - tiempoVentiladorEncendido > TIEMPO_MAXIMO_VENTILADOR) {
+    digitalWrite(releFan, LOW);
+    digitalWrite(ledFan, LOW);
+    ventiladorEncendido = false;
+    enPausaProteccion = true;
+    tiempoProteccionVentilador = millis(); // Guardar el tiempo de inicio de la pausa
+  }
+
+  // Control de la pausa de protección
+  if (enPausaProteccion && millis() - tiempoProteccionVentilador >= TIEMPO_DESCANSO_VENTILADOR) {
+    enPausaProteccion = false; // Finalizar la pausa de protección
+    tiempoVentiladorEncendido = millis(); // Resetear el contador del tiempo encendido
+  }
+
+  // Control de temperatura
+  if (!enPausaProteccion && temperaturaPCB > TEMPERATURA_ENCENDIDO) {
+    // Si la temperatura supera los 40°C, encender el ventilador
+    digitalWrite(releFan, HIGH);
+    ventiladorEncendido = true;
+    movimientoAireActivo = false; // Resetear movimiento de aire si está encendido por temperatura
+    tiempoVentiladorEncendido = millis();
+  } else if (temperaturaPCB < TEMPERATURA_APAGADO && ventiladorEncendido && !movimientoAireActivo && !enPausaProteccion) {
+    // Apagar el ventilador si la temperatura baja de 35°C
+    digitalWrite(releFan, LOW);
+    ventiladorEncendido = false;
+    tiempoInicioMovimientoAire = millis(); // Reiniciar el contador de movimiento de aire
+  }
+
+  // Movimiento de aire cada 3 minutos
+  if (!ventiladorEncendido && millis() - tiempoInicioMovimientoAire > INTERVALO_MOVIMIENTO_AIRE && !enPausaProteccion) {
+    digitalWrite(releFan, HIGH);
+    movimientoAireActivo = true;
+    tiempoInicioMovimientoAire = millis(); // Reiniciar el contador
+  } else if (movimientoAireActivo && millis() - tiempoInicioMovimientoAire > DURACION_MOVIMIENTO_AIRE) {
+    digitalWrite(releFan, LOW);
+    movimientoAireActivo = false;
+    tiempoInicioMovimientoAire = millis(); // Reiniciar el contador
+  }
 }
