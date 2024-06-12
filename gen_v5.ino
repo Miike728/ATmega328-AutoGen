@@ -20,11 +20,11 @@ LiquidCrystal_I2C lcd(0x20, 16, 2); // Simulación
     modificables:
 ********************************/
 // Constantes de tiempo del ventilador
-const unsigned long TIEMPO_INICIAL_VENTILADOR = 10000; // Tiempo que pasa encendido el ventilador al arrancar
-const unsigned long INTERVALO_MOVIMIENTO_AIRE = 180000; // Tiempo hasta que se encienda para mover el aire de la sala (esto solo funciona si el ventilador no se activa por temperatura)
-const unsigned long DURACION_MOVIMIENTO_AIRE = 15000; // Tiempo que pasa encendido el ventilador para mover el aire
-const unsigned long TIEMPO_MAXIMO_VENTILADOR = 300000; // Tiempo máximo que puede estar encendido el ventilador
-const unsigned long TIEMPO_DESCANSO_VENTILADOR = 30000; // Tiempo de descanso del ventilador tras estar encendido
+const unsigned long TIEMPO_INICIAL_VENTILADOR = 10000; // Tiempo que pasa encendido el ventilador al arrancar (10 segundos)
+const unsigned long INTERVALO_MOVIMIENTO_AIRE = 180000; // Tiempo hasta que se encienda para mover el aire de la sala (esto solo funciona si el ventilador no se activa por temperatura) (3 minutos)
+const unsigned long DURACION_MOVIMIENTO_AIRE = 15000; // Tiempo que pasa encendido el ventilador para mover el aire de la sala (15 segundos)
+const unsigned long TIEMPO_MAXIMO_VENTILADOR = 300000; // Tiempo máximo que puede estar encendido el ventilador (5 minutos)
+const unsigned long TIEMPO_DESCANSO_VENTILADOR = 30000; // Tiempo de descanso del ventilador tras estar encendido 5 minutos (30 segundos)
 
 // Valores de temperatura del ventilador
 const float TEMPERATURA_ENCENDIDO = 40.0; // Enciende a 40°C
@@ -61,6 +61,9 @@ float voltajeBateria = 0.0;
 
 // Variable de tiempo de inicio del generador
 unsigned long tiempoInicioGenerador = 0;
+
+// Variables de temperatura
+float temperaturaPCB;
 
 // Variables de estado del ventilador
 unsigned long tiempoInicioVentilador = 0;
@@ -235,16 +238,14 @@ void intentarArrancar() {
      // Configura el aire según el intento
     if (intentosArranque == 1) {
       abrirAire(); // Abre el aire en el segundo intento
-      lcd.setCursor(0, 1);
-      lcd.print("                ");
+      limpiarSegundaLineaLCD();
       lcd.setCursor(0, 1);
       lcd.print("Aire abierto");
       beepInfo(); // Aviso sonoro de información
       delay(750); // Pequeña pausa para que de tiempo
     } else {
       cerrarAire(); // Cierra el aire en el primer y tercer intento
-      lcd.setCursor(0, 1);
-      lcd.print("                ");
+      limpiarSegundaLineaLCD();
       lcd.setCursor(0, 1);
       lcd.print("Aire cerrado");
       beepInfo(); // Aviso sonoro de información
@@ -289,8 +290,7 @@ void intentarArrancar() {
     if (!arranqueExitoso) {
       intentosArranque++;
       digitalWrite(releContacto, HIGH); // Apagar contacto (inverso) (por si arrancó y no se detectó)
-      lcd.setCursor(0, 1);
-      lcd.print("                ");
+      limpiarSegundaLineaLCD();
       lcd.setCursor(0, 1);
       lcd.print("Fallo arranque ");
       lcd.setCursor(15,1);
@@ -310,43 +310,37 @@ void intentarArrancar() {
 
 
 void operacionNormal() {
-  lcd.setCursor(0, 1);
-  lcd.print("                ");
+  limpiarSegundaLineaLCD();
   lcd.setCursor(0, 1);
   lcd.print("Motor arrancado");
   digitalWrite(ledMotorOn, HIGH);
   digitalWrite(ledStarting, LOW);
-  lcd.setCursor(0, 1);
-  lcd.print("                ");
+  limpiarSegundaLineaLCD();
   beepInfo(); // Aviso sonoro de información
-  abrirAire(); // Abrir el aire después de arrancar
+
   lcd.setCursor(0, 1);
   lcd.print("Esperando aire...");
-  delay(750); // Pequeña pausa antes de abrir el aire para evitar que se apague
+  delay(1000); // Pequeña pausa antes de abrir el aire para evitar que se apague
+  abrirAire(); // Abrir el aire después de arrancar
   lcd.print("Aire abierto");
-  delay(250);
-  
+  delay(500);
   beepInfo(); // Aviso sonoro de información
   digitalWrite(releFan, HIGH);
   digitalWrite(ledFan, HIGH);
+  limpiarSegundaLineaLCD();
   lcd.setCursor(0, 1);
-  lcd.print("                ");
-  lcd.setCursor(0, 1);
-  lcd.print("Ventilacion ON");
-  delay(5000);
-  
-  digitalWrite(releTransfer, HIGH);
+  lcd.print("Ventilador ON");
+  delay(5000); // Esperar 5 segundos para calentar el motor
+  digitalWrite(releTransfer, HIGH); // Transferir la carga
   digitalWrite(ledTransfer, HIGH);
-  lcd.setCursor(0, 1);
-  lcd.print("                ");
+  limpiarSegundaLineaLCD();
   lcd.setCursor(0, 1);
   lcd.print("Transfer OK");
   delay(1000);
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Generador ON");
-  lcd.setCursor(0, 1);
-  lcd.print("                ");
+  limpiarSegundaLineaLCD();
   generadorEnMarcha = true;
 }
 
@@ -363,10 +357,10 @@ void estadoError() {
   while (true) {
     // Mantiene el sistema en un estado de error
     digitalWrite(ledFallo, HIGH);
-    backlight(); // Encender backlight del LCD
+    lcd.backlight(); // Encender backlight del LCD
     beepError(); // Aviso sonoro de error grave
     digitalWrite(ledFallo, LOW);
-    noBacklight(); // Apagar backlight del LCD
+    lcd.noBacklight(); // Apagar backlight del LCD
     delay(2000); // Espera entre pitidos
   }
 }
@@ -388,26 +382,24 @@ void restablecerSistema() {
     delay(10000); // Esperar 10 segundos antes de apagar el generador
     digitalWrite(releTransfer, LOW);
     digitalWrite(ledTransfer, LOW);
-    lcd.setCursor(0, 1);
-    lcd.print("                ");
+    limpiarSegundaLineaLCD();
     lcd.setCursor(0, 1);
     lcd.print("Transfer OFF");
-    
-    delay(5000); // Otros 5 segundos de espera
+    delay(1000);
+    limpiarSegundaLineaLCD();
+    lcd.setCursor(0, 1);
+    lcd.print("Enfriando...");
+    delay(15000); // 15 segundos de enfriamiento antes de apagar el ventilador
     digitalWrite(releFan, LOW);
     digitalWrite(ledFan, LOW);
-    lcd.setCursor(0, 1);
-    lcd.print("                ");
+    limpiarSegundaLineaLCD();
     lcd.setCursor(0, 1);
     lcd.print("Ventilacion OFF");
-    
-    delay(500); // Pequeña pausa antes de apagar el motor
+    delay(1000); // Pequeña pausa antes de apagar el motor
     digitalWrite(releContacto, HIGH); // Apagar contacto (inverso)
-    lcd.setCursor(0, 1);
-    lcd.print("                ");
+    limpiarSegundaLineaLCD();
     lcd.setCursor(0, 1);
     lcd.print("Contacto OFF");
-    delay(250);
     
     //REVISAR; FUNCION ELIMINADA, CREAR OTRA
     // Espera activa hasta que el motor se haya apagado
@@ -450,9 +442,8 @@ void restablecerSistema() {
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Esperando corte");
-    lcd.setCursor(0, 1);
-    lcd.print("                ");
-    noBacklight(); // Apagar backlight del LCD
+    limpiarSegundaLineaLCD();
+    lcd.noBacklight(); // Apagar backlight del LCD
 
     arranqueRestart = 0; // Reiniciar el contador de arranques para la próxima vez
   }
@@ -497,6 +488,12 @@ void beepWarning() {
   }
 }
 
+void beepFan() {
+  for (int i = 0; i < 3; i++) {
+  beep(buzzer, 2000, 250, 100);
+  }
+}
+
 void beepError() {
   for (int i = 0; i < 3; i++) {
     beep(buzzer, 2000, 500, 300);
@@ -519,10 +516,10 @@ void estadoErrorBateriaBaja() {
   
   while (true) {
     digitalWrite(ledFallo, HIGH);
-    backlight(); // Encender backlight del LCD
+    lcd.backlight(); // Encender backlight del LCD
     beepError(); // Aviso sonoro de error grave
     digitalWrite(ledFallo, LOW);
-    noBacklight(); // Apagar backlight del LCD
+    lcd.noBacklight(); // Apagar backlight del LCD
     delay(2000); // Espera entre pitidos
   }
 }
@@ -530,16 +527,14 @@ void estadoErrorBateriaBaja() {
 // Funciones para controlar el aire
 void cerrarAire() {
   servoChoke.write(50); // Ajustar ángulo para cerrado ////////////////////
-  lcd.setCursor(0, 1);
-  lcd.print("                ");
+  limpiarSegundaLineaLCD();
   lcd.setCursor(0, 1);
   lcd.print("Aire cerrado");
 }
 
 void abrirAire() {
   servoChoke.write(150); // Ajustar ángulo para abierto ////////////////////
-  lcd.setCursor(0, 1);
-  lcd.print("                ");
+  limpiarSegundaLineaLCD();
   lcd.setCursor(0, 1);
   lcd.print("Aire abierto");
 }
@@ -566,7 +561,8 @@ void controlarVentilador() {
   // Control inicial: encender el ventilador al arrancar por 10 segundos
   if (tiempoInicioVentilador == 0) {
     digitalWrite(releFan, HIGH);
-    degitalWrite(ledFan, HIGH);
+    digitalWrite(ledFan, HIGH);
+    beepFan(); // Aviso sonoro de ventilador
     tiempoInicioVentilador = millis();
     ventiladorEncendido = true;
   } else if (millis() - tiempoInicioVentilador > TIEMPO_INICIAL_VENTILADOR && !enPausaProteccion) {
@@ -595,12 +591,15 @@ void controlarVentilador() {
   if (!enPausaProteccion && temperaturaPCB > TEMPERATURA_ENCENDIDO) {
     // Si la temperatura supera los 40°C, encender el ventilador
     digitalWrite(releFan, HIGH);
+    digitalWrite(ledFan, HIGH);
+    beepFan(); // Aviso sonoro de ventilador
     ventiladorEncendido = true;
     movimientoAireActivo = false; // Resetear movimiento de aire si está encendido por temperatura
     tiempoVentiladorEncendido = millis();
   } else if (temperaturaPCB < TEMPERATURA_APAGADO && ventiladorEncendido && !movimientoAireActivo && !enPausaProteccion) {
     // Apagar el ventilador si la temperatura baja de 35°C
     digitalWrite(releFan, LOW);
+    digitalWrite(ledFan, LOW);
     ventiladorEncendido = false;
     tiempoInicioMovimientoAire = millis(); // Reiniciar el contador de movimiento de aire
   }
@@ -608,11 +607,20 @@ void controlarVentilador() {
   // Movimiento de aire cada 3 minutos
   if (!ventiladorEncendido && millis() - tiempoInicioMovimientoAire > INTERVALO_MOVIMIENTO_AIRE && !enPausaProteccion) {
     digitalWrite(releFan, HIGH);
+    digitalWrite(ledFan, HIGH);
+    beepFan(); // Aviso sonoro de ventilador
     movimientoAireActivo = true;
     tiempoInicioMovimientoAire = millis(); // Reiniciar el contador
   } else if (movimientoAireActivo && millis() - tiempoInicioMovimientoAire > DURACION_MOVIMIENTO_AIRE) {
     digitalWrite(releFan, LOW);
+    digitalWrite(ledFan, LOW);
     movimientoAireActivo = false;
     tiempoInicioMovimientoAire = millis(); // Reiniciar el contador
   }
+}
+
+// Función para limpiar la segunda línea del LCD
+void limpiarSegundaLineaLCD() {
+  lcd.setCursor(0, 1);
+  lcd.print("                "); // Asumiendo un LCD de 16x2, 16 espacios en blanco
 }
