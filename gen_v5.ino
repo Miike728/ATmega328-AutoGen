@@ -2,8 +2,6 @@
 // Función de contacto invertida
 
 
-
-
 /********************************
     Bibliotecas requeridas:
 ********************************/
@@ -320,7 +318,7 @@ void operacionNormal() {
 
   lcd.setCursor(0, 1);
   lcd.print("Esperando aire...");
-  delay(1000); // Pequeña pausa antes de abrir el aire para evitar que se apague
+  delay(2000); // Pequeña pausa antes de abrir el aire para evitar que se apague
   abrirAire(); // Abrir el aire después de arrancar
   lcd.print("Aire abierto");
   delay(500);
