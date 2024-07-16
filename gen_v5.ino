@@ -3,7 +3,6 @@
 
 
 
-
 /********************************
     Bibliotecas requeridas:
 ********************************/
@@ -20,9 +19,9 @@ LiquidCrystal_I2C lcd(0x27, 16, 2); // Realidad
     modificables:
 ********************************/
 // Constantes de tiempo del ventilador
-const unsigned long TIEMPO_INICIAL_VENTILADOR = 10000; // Tiempo que pasa encendido el ventilador al arrancar (10 segundos)
+const unsigned long TIEMPO_INICIAL_VENTILADOR = 15000; // Tiempo que pasa encendido el ventilador al arrancar (15 segundos)
 const unsigned long INTERVALO_MOVIMIENTO_AIRE = 180000; // Tiempo hasta que se encienda para mover el aire de la sala (esto solo funciona si el ventilador no se activa por temperatura) (3 minutos)
-const unsigned long DURACION_MOVIMIENTO_AIRE = 15000; // Tiempo que pasa encendido el ventilador para mover el aire de la sala (15 segundos)
+const unsigned long DURACION_MOVIMIENTO_AIRE = 25000; // Tiempo que pasa encendido el ventilador para mover el aire de la sala (25 segundos)
 const unsigned long TIEMPO_MAXIMO_VENTILADOR = 300000; // Tiempo máximo que puede estar encendido el ventilador (5 minutos)
 const unsigned long TIEMPO_DESCANSO_VENTILADOR = 30000; // Tiempo de descanso del ventilador tras estar encendido 5 minutos (30 segundos)
 
@@ -330,7 +329,7 @@ void operacionNormal() {
   limpiarSegundaLineaLCD();
   lcd.setCursor(0, 1);
   lcd.print("Ventilador ON");
-  delay(5000); // Esperar 5 segundos para calentar el motor
+  delay(10000); // Esperar 10 segundos para calentar el motor
   digitalWrite(releTransfer, HIGH); // Transferir la carga
   digitalWrite(ledTransfer, HIGH);
   limpiarSegundaLineaLCD();
@@ -564,11 +563,11 @@ void controlarVentilador() {
   // Leer temperatura actual del PCB
   temperaturaPCB = leerTemperaturaPCB();
 
-  // Control inicial: encender el ventilador al arrancar por 10 segundos
+  // Control inicial: encender el ventilador al arrancar por el tiempo definido
   if (tiempoInicioVentilador == 0) {
     digitalWrite(releFan, HIGH);
     digitalWrite(ledFan, HIGH);
-    beepFan(); // Aviso sonoro de ventilador
+    // beepFan(); // Aviso sonoro de ventilador
     tiempoInicioVentilador = millis();
     ventiladorEncendido = true;
   } else if (millis() - tiempoInicioVentilador > TIEMPO_INICIAL_VENTILADOR && !enPausaProteccion) {
@@ -614,7 +613,7 @@ void controlarVentilador() {
   if (!ventiladorEncendido && millis() - tiempoInicioMovimientoAire > INTERVALO_MOVIMIENTO_AIRE && !enPausaProteccion) {
     digitalWrite(releFan, HIGH);
     digitalWrite(ledFan, HIGH);
-    beepFan(); // Aviso sonoro de ventilador
+    // beepFan(); // Aviso sonoro de ventilador
     movimientoAireActivo = true;
     tiempoInicioMovimientoAire = millis(); // Reiniciar el contador
   } else if (movimientoAireActivo && millis() - tiempoInicioMovimientoAire > DURACION_MOVIMIENTO_AIRE) {
