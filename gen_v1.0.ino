@@ -1,6 +1,13 @@
 // Archivo con función de arranque
 // Función de contacto invertida
 
+// TO-DO:
+// - Función de tiempo límite de funcionamiento del generador, con apagado automático y reinicio tras un tiempo
+// - Añadir un botón de parada de emergencia (físico)
+// - Añadir un botón de reinicio manual (físico)
+// - Añadir luz indicadora (física)
+// - Añadir sensor de corte de luz (relé de 12v con un transformador de 220v a 12v)
+// - Añadir sensor de nivel de combustible (ultrasónico)
 
 
 /********************************
