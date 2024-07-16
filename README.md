@@ -1,5 +1,5 @@
-# Sistema Automático de Control para Generador (BETA)
-### ⚠️Proyecto en desarrollo activo, no terminado⚠️
+# Sistema Automático de Control para Generador (Prototipo v1)
+### ⚠ En desarrollo versión 2, con novedades y preparada para uso real. ⚠
 
 ## Descripción
 Este proyecto consiste en un sistema de control automático para un generador eléctrico que utiliza el microcontrolador ATmega328 (como Arduino Uno). Está diseñado para detectar cortes de energía y activar automáticamente el generador en respuesta, además de gestionar el apagado del mismo una vez que la energía eléctrica se restablece. El sistema incluye un display LCD para informar sobre el estado y la duración del funcionamiento del generador.
