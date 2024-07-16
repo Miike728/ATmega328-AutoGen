@@ -25,6 +25,7 @@ const unsigned long DURACION_MOVIMIENTO_AIRE = 25000; // Tiempo que pasa encendi
 const unsigned long TIEMPO_MAXIMO_VENTILADOR = 300000; // Tiempo máximo que puede estar encendido el ventilador (5 minutos)
 const unsigned long TIEMPO_DESCANSO_VENTILADOR = 30000; // Tiempo de descanso del ventilador tras estar encendido 5 minutos (30 segundos)
 
+
 // Valores de temperatura del ventilador
 const float TEMPERATURA_ENCENDIDO = 35.0; // Enciende a 35°C
 const float TEMPERATURA_APAGADO = 30.0; // Apaga a 30°C
@@ -60,6 +61,10 @@ float voltajeBateria = 0.0;
 
 // Variable de tiempo de inicio del generador
 unsigned long tiempoInicioGenerador = 0;
+
+// Variable para guardar el tiempo del corte de luz
+unsigned long tiempoCorte = 0;
+bool esperandoCorte = false; // Flag para indicar que estamos esperando para iniciar el generador
 
 // Variables de temperatura
 float temperaturaPCB;
@@ -164,19 +169,43 @@ void loop() { ///////////////REVISAR
 
   // Detectar corte de luz
   if (!luzActual && luzPrevia) {
-    if(arranqueRestart < 1) {
+    if (arranqueRestart < 1) {
     alertaCorteLuz();
-    iniciarGenerador();
-/////REVISAR
-    arranqueRestart++;
+    tiempoCorte = millis();
+    esperandoCorte = true;
     }
-    luzVueltaTiempo = 0; // Reiniciar el contador porque la luz se fue
+  }
+
+  // Si estamos esperando para iniciar el generador y han pasado 3 segundos desde el corte
+  if (esperandoCorte && millis() - tiempoCorte >= 3000) {
+    if (!luzActual) {
+      // Si la luz no ha vuelto, iniciar el generador
+      if (arranqueRestart < 1) {
+        iniciarGenerador();
+        arranqueRestart++;
+      }
+    } else {
+      // Si la luz volvió, cancelar la alerta
+      cancelarAlertaCorteLuz();
+    }
+    esperandoCorte = false; // Resetear el flag de espera
+  }
+
+  // Si la luz vuelve y estábamos esperando
+  if (luzActual && esperandoCorte) {
+    cancelarAlertaCorteLuz();
+    esperandoCorte = false;
   }
 
   // Detectar el retorno de la luz
   if (luzActual && !luzPrevia) {
     // Marcar el tiempo inicial cuando la luz regresa
     luzVueltaTiempo = millis();
+    // En prueba:
+    //  // Indicar que la luz ha vuelto en la pantalla
+    //  lcd.clear();
+    //  lcd.setCursor(0, 0);
+    //  lcd.print("Hay suministro!");
   }
 
   // Verificar si la luz ha vuelto y se ha mantenido por al menos 5 segundos
@@ -190,6 +219,14 @@ void loop() { ///////////////REVISAR
     luzVueltaTiempo = 0; // Reiniciar el tiempo de restablecimiento de luz
   }
 
+  // En prueba:
+  //  // Si pasaron los 5 segundos de luzVueltaTiempo y se fue de nuevo, cambiar texto
+  //  if (!luzActual && luzVueltaTiempo != 0 && (millis() - luzVueltaTiempo > 5000)) {
+  //    lcd.clear();
+  //   lcd.setCursor(0, 0);
+  //    lcd.print("Corte detectado!");
+  //  }
+
   luzPrevia = luzActual; // Actualizar el estado de la luz para la próxima iteración
   delay(50); // Pequeña pausa para no saturar el bucle
 }
@@ -201,6 +238,18 @@ void alertaCorteLuz() {
   lcd.clear();
   lcd.print("Corte detectado!");
   lcd.backlight(); // Encender backlight del LCD
+}
+
+void cancelarAlertaCorteLuz() {
+  digitalWrite(ledCorte, LOW);
+  beepInfo(); // Aviso sonoro de información
+  lcd.clear();
+  lcd.print("Corte cancelado!");
+  delay(250);
+  lcd.noBacklight(); // Apagar backlight del LCD
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Esperando corte");
 }
 
 void iniciarGenerador() {
@@ -329,7 +378,14 @@ void operacionNormal() {
   limpiarSegundaLineaLCD();
   lcd.setCursor(0, 1);
   lcd.print("Ventilador ON");
-  delay(10000); // Esperar 10 segundos para calentar el motor
+
+  // Espera para calentar un poco el motor antes de transferir la carga
+  delay(1000);
+  lcd.setCursor(0, 1);
+  lcd.print("Calentando...");
+  delay(9000);
+  avisoTransfer(); // Aviso de transferencia
+
   digitalWrite(releTransfer, HIGH); // Transferir la carga
   digitalWrite(ledTransfer, HIGH);
   limpiarSegundaLineaLCD();
@@ -496,6 +552,14 @@ void beepFan() {
 void beepError() {
   for (int i = 0; i < 3; i++) {
     beep(buzzer, 2000, 500, 300);
+  }
+}
+
+void avisoTransfer() {
+  for (int i = 0; i < 2; i++) {
+    digitalWrite(ledTransfer, HIGH);
+    beep(buzzer, 1000, 500, 250); // Buzzer a 2000Hz, 200ms sonido, 100ms pausa
+    digitalWrite(ledTransfer, LOW);
   }
 }
 
