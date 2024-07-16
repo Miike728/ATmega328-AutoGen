@@ -2,6 +2,8 @@
 // Función de contacto invertida
 
 
+
+
 /********************************
     Bibliotecas requeridas:
 ********************************/
@@ -10,8 +12,8 @@
 #include <LiquidCrystal_I2C.h>
 
 // Configuración del display I2C
-LiquidCrystal_I2C lcd(0x20, 16, 2); // Simulación
-// LiquidCrystal_I2C lcd(0x27, 16, 2); // Realidad
+// LiquidCrystal_I2C lcd(0x20, 16, 2); // Simulación
+LiquidCrystal_I2C lcd(0x27, 16, 2); // Realidad
 
 /********************************
     Constantes y variables 
@@ -25,8 +27,8 @@ const unsigned long TIEMPO_MAXIMO_VENTILADOR = 300000; // Tiempo máximo que pue
 const unsigned long TIEMPO_DESCANSO_VENTILADOR = 30000; // Tiempo de descanso del ventilador tras estar encendido 5 minutos (30 segundos)
 
 // Valores de temperatura del ventilador
-const float TEMPERATURA_ENCENDIDO = 40.0; // Enciende a 40°C
-const float TEMPERATURA_APAGADO = 35.0; // Apaga a 35°C
+const float TEMPERATURA_ENCENDIDO = 35.0; // Enciende a 35°C
+const float TEMPERATURA_APAGADO = 30.0; // Apaga a 30°C
 
 
 /********************************
@@ -105,6 +107,7 @@ void setup() {
   servoChoke.write(50);   // Empezar con el choke cerrado (ajustar)//////////////
   delay(1000);
   servoChoke.write(150); // Dejar abierto (ajustar)////////////////
+  servoChoke.detach(); // Desconectar el servo para evitar desgaste
   digitalWrite(ledWaiting, HIGH); // Encender LED WAITING
   delay(250);
   digitalWrite(ledWaiting, LOW); // Apagar LED WAITING
@@ -213,7 +216,7 @@ void iniciarGenerador() {
     beepInfo(); // Aviso sonoro de información
     lcd.setCursor(0, 1);
     lcd.print("Aire cerrado");
-    delay(500);
+    delay(250);
     intentarArrancar();
   }
 }
@@ -233,27 +236,27 @@ void intentarArrancar() {
       return; // Sale de la función si la batería está baja
     }
 
-     // Configura el aire según el intento
+     // Configura el aire según el intento de arranque
     if (intentosArranque == 1) {
       abrirAire(); // Abre el aire en el segundo intento
       limpiarSegundaLineaLCD();
       lcd.setCursor(0, 1);
       lcd.print("Aire abierto");
       beepInfo(); // Aviso sonoro de información
-      delay(750); // Pequeña pausa para que de tiempo
+      delay(250); // Pequeña pausa para que de tiempo
     } else {
       cerrarAire(); // Cierra el aire en el primer y tercer intento
       limpiarSegundaLineaLCD();
       lcd.setCursor(0, 1);
       lcd.print("Aire cerrado");
       beepInfo(); // Aviso sonoro de información
-      delay(750); // Pequeña pausa para que de tiempo
+      delay(250); // Pequeña pausa para que de tiempo
     }
+
+    beepArranque(); // Aviso sonoro de arranque
 
     digitalWrite(releStarter, HIGH); // Activa el motor de arranque
     digitalWrite(ledStarting, HIGH);
-
-    beepArranque(); // Aviso sonoro de arranque
 
     lcd.setCursor(0, 1);
     lcd.print("Arrancando motor...");
@@ -320,8 +323,7 @@ void operacionNormal() {
   lcd.print("Esperando aire...");
   delay(2000); // Pequeña pausa antes de abrir el aire para evitar que se apague
   abrirAire(); // Abrir el aire después de arrancar
-  lcd.print("Aire abierto");
-  delay(500);
+  delay(250);
   beepInfo(); // Aviso sonoro de información
   digitalWrite(releFan, HIGH);
   digitalWrite(ledFan, HIGH);
@@ -458,7 +460,7 @@ float convertirTemperatura(int lectura) {
 
 float leerTemperaturaPCB() {
   vout = analogRead(sensorPCB) * (4976.30 / 1023);
-  float temperatura = ((vout - vout0) / tc) - 10;
+  float temperatura = ((vout - vout0) / tc) - 5;
   return temperatura; // Devuelve la temperatura en grados Celsius
 }
 
@@ -476,7 +478,7 @@ void beepInfo() {
 
 void beepArranque() {
   for (int i = 0; i < 3; i++) {
-    beep(buzzer, 2000, 500, 250);
+    beep(buzzer, 2000, 850, 250);
   }
 }
 
@@ -524,14 +526,20 @@ void estadoErrorBateriaBaja() {
 
 // Funciones para controlar el aire
 void cerrarAire() {
+ servoChoke.attach(9);  // Adjuntar el servo al pin 9
   servoChoke.write(50); // Ajustar ángulo para cerrado ////////////////////
+  delay(750); // Pequeña pausa para permitir que el servo se mueva
+  servoChoke.detach(); // Desconectar el servo
   limpiarSegundaLineaLCD();
   lcd.setCursor(0, 1);
   lcd.print("Aire cerrado");
 }
 
 void abrirAire() {
+  servoChoke.attach(9);  // Adjuntar el servo al pin 9
   servoChoke.write(150); // Ajustar ángulo para abierto ////////////////////
+  delay(750); // Pequeña pausa para permitir que el servo se mueva
+  servoChoke.detach(); // Desconectar el servo
   limpiarSegundaLineaLCD();
   lcd.setCursor(0, 1);
   lcd.print("Aire abierto");
@@ -590,7 +598,7 @@ void controlarVentilador() {
     // Si la temperatura supera los 40°C, encender el ventilador
     digitalWrite(releFan, HIGH);
     digitalWrite(ledFan, HIGH);
-    beepFan(); // Aviso sonoro de ventilador
+    // beepFan(); // Aviso sonoro de ventilador
     ventiladorEncendido = true;
     movimientoAireActivo = false; // Resetear movimiento de aire si está encendido por temperatura
     tiempoVentiladorEncendido = millis();
