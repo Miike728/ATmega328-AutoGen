@@ -3,7 +3,7 @@
 
 ## Descripción
 Este proyecto consiste en un sistema de control automático para un generador eléctrico que utiliza el microcontrolador ATmega328 (como Arduino Uno). Está diseñado para detectar cortes de energía y activar automáticamente el generador en respuesta, además de gestionar el apagado del mismo una vez que la energía eléctrica se restablece. El sistema incluye un display LCD para informar sobre el estado y la duración del funcionamiento del generador.
-
+ 
 ## Características
 - **Detección automática de cortes de luz**: El sistema utiliza un sensor de voltaje para detectar la pérdida de energía eléctrica y activar el generador.
 - **Control de arranque y parada**: Gestiona el arranque del generador mediante relés y monitorea el estado del motor para asegurar que arranque y se detenga correctamente.
@@ -28,6 +28,10 @@ El esquema del circuito incluye conexiones entre el Arduino Uno y los relés, se
 
 ## Código
 El código para Arduino está escrito en C++ y utiliza varias librerías para manejar el hardware conectado. Incluye rutinas para la gestión de eventos (como la detección de cortes de luz y el arranque del generador), así como la interfaz de usuario en el LCD.
+
+## PCB
+#### ⚠ PCB prototipo v1, no es la versión final.
+![PCB-v1-Cara](https://github.com/user-attachments/assets/ef147093-b9d2-4ea9-86e5-d7124e487b01)
 
 <!---
 ## Configuración y uso
