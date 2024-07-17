@@ -1,8 +1,3 @@
-// Archivo con función de arranque
-// Función de contacto invertida
-
-
-
 /********************************
     Bibliotecas requeridas:
 ********************************/
@@ -25,15 +20,16 @@ const unsigned long DURACION_MOVIMIENTO_AIRE = 25000; // Tiempo que pasa encendi
 const unsigned long TIEMPO_MAXIMO_VENTILADOR = 300000; // Tiempo máximo que puede estar encendido el ventilador (5 minutos)
 const unsigned long TIEMPO_DESCANSO_VENTILADOR = 30000; // Tiempo de descanso del ventilador tras estar encendido 5 minutos (30 segundos)
 
-
 // Valores de temperatura del ventilador
 const float TEMPERATURA_ENCENDIDO = 35.0; // Enciende a 35°C
 const float TEMPERATURA_APAGADO = 30.0; // Apaga a 30°C
 
+// Variables de tiempo del motor
+unsigned long tiempoInicioMotor = 0; // Momento en que el motor comenzó a funcionar
+unsigned long tiempoApagadoMotor = 0; // Momento en que el motor se apagó
+unsigned long duracionMotorEncendido = 0; // Duración del motor encendido en milisegundos
+bool motorEncendido = false; // Flag para indicar si el motor está encendido
 
-/********************************
- -------------------------------
-********************************/
 
 // Definición de pines
 const int ledCorte = 2, ledMotorOn = 3, ledStarting = 4, ledFan = 5, ledWaiting = 6, ledTransfer = 7;
@@ -91,7 +87,6 @@ void setup() {
   pinMode(releFan, OUTPUT);
   pinMode(releTransfer, OUTPUT);
   pinMode(releStarter, OUTPUT);
-  // pinMode(monitorArranque, INPUT); // Eliminado
   pinMode(detectorCorte, INPUT);
   pinMode(buzzer, OUTPUT);
   
@@ -106,11 +101,11 @@ void setup() {
   lcd.print("Inicializando...");
   servoChoke.attach(9);  // Adjuntar el servo al pin 9
   delay(1000); // Pequeña pausa para permitir que el servo se inicialice
-  servoChoke.write(150); // Probar con el choke abierto (ajustar)////////////////
+  servoChoke.write(150); // Probar con el choke abierto
   delay(500);
-  servoChoke.write(50);   // Empezar con el choke cerrado (ajustar)//////////////
+  servoChoke.write(50);   // Empezar con el choke cerrado
   delay(1000);
-  servoChoke.write(150); // Dejar abierto (ajustar)////////////////
+  servoChoke.write(150); // Dejar abierto
   servoChoke.detach(); // Desconectar el servo para evitar desgaste
   digitalWrite(ledWaiting, HIGH); // Encender LED WAITING
   delay(250);
@@ -150,7 +145,7 @@ void setup() {
   lcd.noBacklight();
 }
 
-void loop() { ///////////////REVISAR
+void loop() {
   bool luzActual = digitalRead(detectorCorte);
   static unsigned long luzVueltaTiempo = 0; // Almacenar cuándo la luz regresó por primera vez
   bool luzEstable = false;
@@ -201,11 +196,6 @@ void loop() { ///////////////REVISAR
   if (luzActual && !luzPrevia) {
     // Marcar el tiempo inicial cuando la luz regresa
     luzVueltaTiempo = millis();
-    // En prueba:
-    //  // Indicar que la luz ha vuelto en la pantalla
-    //  lcd.clear();
-    //  lcd.setCursor(0, 0);
-    //  lcd.print("Hay suministro!");
   }
 
   // Verificar si la luz ha vuelto y se ha mantenido por al menos 5 segundos
@@ -219,18 +209,9 @@ void loop() { ///////////////REVISAR
     luzVueltaTiempo = 0; // Reiniciar el tiempo de restablecimiento de luz
   }
 
-  // En prueba:
-  //  // Si pasaron los 5 segundos de luzVueltaTiempo y se fue de nuevo, cambiar texto
-  //  if (!luzActual && luzVueltaTiempo != 0 && (millis() - luzVueltaTiempo > 5000)) {
-  //    lcd.clear();
-  //   lcd.setCursor(0, 0);
-  //    lcd.print("Corte detectado!");
-  //  }
-
   luzPrevia = luzActual; // Actualizar el estado de la luz para la próxima iteración
   delay(50); // Pequeña pausa para no saturar el bucle
 }
-
 
 void alertaCorteLuz() {
   digitalWrite(ledCorte, HIGH);
@@ -272,6 +253,7 @@ void iniciarGenerador() {
 void intentarArrancar() {
   intentosArranque = 0;
   bool arranqueExitoso = false;
+  unsigned long tiempoDesdeApagado = millis() - tiempoApagadoMotor;
 
   // Leer voltaje inicial de la batería antes de intentar arrancar
   double voltajeBateria = ((analogRead(A0) / 1023.0) * 5.0 * (22000.0 + 10000.0) / 10000.0);
@@ -284,22 +266,7 @@ void intentarArrancar() {
       return; // Sale de la función si la batería está baja
     }
 
-     // Configura el aire según el intento de arranque
-    if (intentosArranque == 1) {
-      abrirAire(); // Abre el aire en el segundo intento
-      limpiarSegundaLineaLCD();
-      lcd.setCursor(0, 1);
-      lcd.print("Aire abierto");
-      beepInfo(); // Aviso sonoro de información
-      delay(250); // Pequeña pausa para que de tiempo
-    } else {
-      cerrarAire(); // Cierra el aire en el primer y tercer intento
-      limpiarSegundaLineaLCD();
-      lcd.setCursor(0, 1);
-      lcd.print("Aire cerrado");
-      beepInfo(); // Aviso sonoro de información
-      delay(250); // Pequeña pausa para que de tiempo
-    }
+    ajustarAireSegunTemperatura(tiempoDesdeApagado, duracionMotorEncendido);  // Ajustar el aire según la temperatura
 
     beepArranque(); // Aviso sonoro de arranque
 
@@ -323,7 +290,7 @@ void intentarArrancar() {
       }
       
       // Si el voltaje sube 1.5V desde el valor de caída, el motor ha arrancado
-      if (motorGirando && (voltajeBateria - voltajeAnterior >= 1.0)) { // AJUSTAR / REVISAR
+      if (motorGirando && (voltajeBateria - voltajeAnterior >= 1.0)) {
         arranqueExitoso = true;
         digitalWrite(ledStarting, LOW); // Apagar LED de arranque
         digitalWrite(ledMotorOn, HIGH); // Encender LED de motor en marcha
@@ -334,24 +301,27 @@ void intentarArrancar() {
     }
 
     digitalWrite(releStarter, LOW); // Desactiva el motor de arranque
-    digitalWrite(ledStarting, LOW);
+    digitalWrite(ledStarting, LOW); // Apagar LED de arranque
 
-    if (!arranqueExitoso) {
-      intentosArranque++;
-      digitalWrite(releContacto, HIGH); // Apagar contacto (inverso) (por si arrancó y no se detectó)
-      limpiarSegundaLineaLCD();
-      lcd.setCursor(0, 1);
-      lcd.print("Fallo arranque ");
-      lcd.setCursor(15,1);
-      lcd.print(intentosArranque);
-      beepWarning(); // Aviso sonoro de advertencia
-      delay(5000); // Espera antes del próximo intento
-      digitalWrite(releContacto, LOW); // Encender contacto (inverso) para el próximo intento
+    if (arranqueExitoso) {
+          tiempoInicioMotor = millis(); // Registro del tiempo de inicio del motor
+          motorEncendido = true; // Indicar que el motor está encendido
+    } else {
+        intentosArranque++;
+        digitalWrite(releContacto, HIGH); // Apagar contacto (inverso) (por si arrancó y no se detectó)
+        limpiarSegundaLineaLCD();
+        lcd.setCursor(0, 1);
+        lcd.print("Fallo arranque ");
+        lcd.setCursor(15, 1);
+        lcd.print(intentosArranque);
+        beepWarning(); // Aviso sonoro de advertencia
+        delay(5000); // Espera antes del próximo intento
+        digitalWrite(releContacto, LOW); // Encender contacto (inverso) para el próximo intento
     }
   }
     //AÑADIDO DE VUELTA
     if (arranqueExitoso) {
-        operacionNormal();
+        operacionNormal(); // Va al estado normal si arranca
     } else {
         estadoError(); // Va al estado de error si no arranca después de 3 intentos
     }
@@ -455,19 +425,10 @@ void restablecerSistema() {
     limpiarSegundaLineaLCD();
     lcd.setCursor(0, 1);
     lcd.print("Contacto OFF");
-    
-    //REVISAR; FUNCION ELIMINADA, CREAR OTRA
-    // Espera activa hasta que el motor se haya apagado
-   // while (digitalRead(monitorArranque)) { // Mientras esté encendido, esperar
-   //   lcd.setCursor(0, 1);
-   //   lcd.print("Esperando motor");
-   //   delay(100); // Pequeña pausa para no saturar el bucle
-   // }
-
-    delay(1000); // Pequeña pausa
-    
+    delay(1500); // Pequeña pausa
     digitalWrite(ledWaiting, HIGH); // Encender LED WAITING
     digitalWrite(ledMotorOn, LOW); // Apagar LED motor arrancado
+    apagarMotor(); // Calcular la duración del motor encendido
     lcd.clear();
     lcd.setCursor(0, 1);
     lcd.print("Motor apagado");
@@ -590,7 +551,7 @@ void estadoErrorBateriaBaja() {
 // Funciones para controlar el aire
 void cerrarAire() {
  servoChoke.attach(9);  // Adjuntar el servo al pin 9
-  servoChoke.write(50); // Ajustar ángulo para cerrado ////////////////////
+  servoChoke.write(50);
   delay(750); // Pequeña pausa para permitir que el servo se mueva
   servoChoke.detach(); // Desconectar el servo
   limpiarSegundaLineaLCD();
@@ -600,7 +561,7 @@ void cerrarAire() {
 
 void abrirAire() {
   servoChoke.attach(9);  // Adjuntar el servo al pin 9
-  servoChoke.write(150); // Ajustar ángulo para abierto ////////////////////
+  servoChoke.write(150);
   delay(750); // Pequeña pausa para permitir que el servo se mueva
   servoChoke.detach(); // Desconectar el servo
   limpiarSegundaLineaLCD();
@@ -688,8 +649,37 @@ void controlarVentilador() {
   }
 }
 
+void apagarMotor() {
+  // Código para apagar el motor
+  motorEncendido = false;
+  tiempoApagadoMotor = millis();
+  duracionMotorEncendido = tiempoApagadoMotor - tiempoInicioMotor; // Calcula la duración del motor encendido
+}
+
+void ajustarAireSegunTemperatura(unsigned long tiempoDesdeApagado, unsigned long duracionMotorEncendido) {
+    if (duracionMotorEncendido < 15000 && tiempoDesdeApagado < 60000) {
+        // Motor funcionó menos de 15 segundos y se apagó hace menos de 1 minuto
+        cerrarAire();
+        limpiarSegundaLineaLCD();
+        lcd.setCursor(0, 1);
+        lcd.print("Aire cerrado");
+    } else if (tiempoDesdeApagado < 60000) {
+        // Motor se apagó hace menos de 1 minuto
+        abrirAire();
+        limpiarSegundaLineaLCD();
+        lcd.setCursor(0, 1);
+        lcd.print("Aire abierto");
+    } else {
+        // Motor se apagó hace más de 1 minuto
+        cerrarAire();
+        limpiarSegundaLineaLCD();
+        lcd.setCursor(0, 1);
+        lcd.print("Aire cerrado");
+    }
+}
+
 // Función para limpiar la segunda línea del LCD
 void limpiarSegundaLineaLCD() {
   lcd.setCursor(0, 1);
-  lcd.print("                "); // Asumiendo un LCD de 16x2, 16 espacios en blanco
+  lcd.print("                ");
 }
